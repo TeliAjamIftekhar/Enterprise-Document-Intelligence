@@ -1,70 +1,51 @@
-# Textbook AI Assistant — Production Requirements
+## Grade 9 Multi-Textbook Scope
 
-## Initial Production Stage
+The production MVP will support all available Grade 9 textbooks.
 
-- Registered users: 100
-- Daily active users: 20
-- Peak concurrent users: 5
-- Expected questions per day: 300
-- Normal traffic: Less than 1 request per second
-- Burst traffic: 3 requests per second
-- Initial textbooks: 1
-- Initial vector chunks: 934
-- Initial retrieval artifacts: Approximately 4.2 MB
+### Initial Targets
 
-## Growth Stages
+- Standard: Grade 9
+- Maximum initial textbooks: 20
+- Supported subjects: English, Marathi, Hindi, Mathematics, Science, History, Geography, and other Grade 9 subjects
+- Supported languages: English, Marathi, and Hindi
+- Search scope: One selected textbook per question
+- Vector architecture: Separate FAISS index for each textbook
+- Cross-book search: Not included in the initial MVP
 
-| Stage | Registered Users | Concurrent Users | Questions Per Day |
-|---|---:|---:|---:|
-| MVP | 100 | 5 | 300 |
-| Growth | 1,000 | 25 | 3,000 |
-| Large | 10,000 | 150 | 30,000 |
+### Required Textbook Metadata
 
-## API Requirements
+Each textbook must include:
 
-- Maximum question length: 1,000 characters
-- Maximum request body: 16 KB
-- One textbook per request
-- Retrieve top 5 chunks
-- Target answer length: 300-700 tokens
-- Per-user limit: 10 requests per minute
-- Initial daily limit: 100 questions per user
+- book_id
+- title
+- grade
+- subject
+- language
+- board
+- academic_year
+- version
+- status
 
-## Performance Targets
+### Required Chunk Metadata
 
-- Median response time: Under 7 seconds
-- p95 response time: Under 15 seconds
-- Maximum backend response target: Under 20 seconds
-- FAISS retrieval target: Under 200 milliseconds
+Each chunk must include:
 
-## Availability and Recovery
+- chunk_id
+- book_id
+- grade
+- subject
+- language
+- source
+- page
+- chapter_id
+- chapter_title
+- version
+- text
 
-- Availability target: 99.5%
-- Recovery Time Objective: 4 hours
-- Recovery Point Objective: 24 hours
-- S3 artifact versioning: Required
-- Deployment rollback: Required
-- Multi-region deployment: Not required for MVP
+### Runtime Behaviour
 
-## Security Requirements
-
-- Cognito authentication
-- JWT-protected API
-- Student, teacher, and administrator roles
-- Least-privilege IAM
-- S3 Block Public Access
-- Encryption at rest and in transit
-- No credentials in source code
-- No sensitive tokens in logs
-- Input validation
-- Per-user throttling
-- Sanitized error responses
-
-## Cost Requirements
-
-- Soft monthly target: Below $50
-- Warning threshold: $50
-- Critical budget threshold: $100
-- Avoid continuously running compute
-- Keep FAISS for the MVP
-- Defer OpenSearch and Bedrock Knowledge Bases
+- The user must select a textbook before asking a question.
+- The API must validate the selected book_id.
+- Retrieval must run only against the selected textbook.
+- Citations must belong to the selected textbook.
+- The Lambda runtime should load only the selected textbook index.
