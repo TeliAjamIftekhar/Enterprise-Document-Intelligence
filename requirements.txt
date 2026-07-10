@@ -1,0 +1,13 @@
+boto3
+botocore
+
+pymupdf
+
+faiss-cpu
+
+numpy==1.26.4
+pandas==2.2.3
+
+streamlit
+
+joblib
