@@ -1,0 +1,276 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-9-english-kaveri",
+  "book_version": "v1-chapter-test",
+  "title": "Kaveri English Textbook for Grade 9",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-IX/English-Kaveri.zip",
+    "archive_root": "iebe1dd",
+    "supplementary_assets": [
+      "iebe1cc.png"
+    ]
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 2,
+    "source_document_pages": 296,
+    "trailing_blank_pages": 2,
+    "canonical_page_count": 300,
+    "source_to_canonical_page_offset": 2
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "source_filename": "iebe1ps.pdf",
+      "source_page_count": 18,
+      "canonical_start_page": 3,
+      "canonical_end_page": 20,
+      "title": "Kaveri Front Matter"
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "iebe101.pdf",
+      "source_page_count": 32,
+      "canonical_start_page": 21,
+      "canonical_end_page": 52,
+      "title": "Unit 1",
+      "chapters": [
+        {
+          "chapter_id": "how-i-taught-my-grandmother-to-read",
+          "chapter_title": "How I Taught My Grandmother to Read",
+          "source_start_page": 1,
+          "source_end_page": 22,
+          "canonical_start_page": 21,
+          "canonical_end_page": 42
+        },
+        {
+          "chapter_id": "bharat-our-land",
+          "chapter_title": "Bharat Our Land",
+          "source_start_page": 23,
+          "source_end_page": 32,
+          "canonical_start_page": 43,
+          "canonical_end_page": 52
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "iebe102.pdf",
+      "source_page_count": 36,
+      "canonical_start_page": 53,
+      "canonical_end_page": 88,
+      "title": "Unit 2",
+      "chapters": [
+        {
+          "chapter_id": "the-pot-maker",
+          "chapter_title": "The Pot Maker",
+          "source_start_page": 1,
+          "source_end_page": 24,
+          "canonical_start_page": 53,
+          "canonical_end_page": 76
+        },
+        {
+          "chapter_id": "gifts-of-grace-honouring-our-vocations",
+          "chapter_title": "Gifts of Grace: Honouring Our Vocations",
+          "source_start_page": 25,
+          "source_end_page": 36,
+          "canonical_start_page": 77,
+          "canonical_end_page": 88
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "iebe103.pdf",
+      "source_page_count": 28,
+      "canonical_start_page": 89,
+      "canonical_end_page": 116,
+      "title": "Unit 3",
+      "chapters": [
+        {
+          "chapter_id": "winds-of-change",
+          "chapter_title": "Winds of Change",
+          "source_start_page": 1,
+          "source_end_page": 17,
+          "canonical_start_page": 89,
+          "canonical_end_page": 105
+        },
+        {
+          "chapter_id": "canvas-of-soil",
+          "chapter_title": "Canvas of Soil",
+          "source_start_page": 18,
+          "source_end_page": 28,
+          "canonical_start_page": 106,
+          "canonical_end_page": 116
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "iebe104.pdf",
+      "source_page_count": 40,
+      "canonical_start_page": 117,
+      "canonical_end_page": 156,
+      "title": "Unit 4",
+      "chapters": [
+        {
+          "chapter_id": "vitamin-m",
+          "chapter_title": "Vitamin-M",
+          "source_start_page": 1,
+          "source_end_page": 29,
+          "canonical_start_page": 117,
+          "canonical_end_page": 145
+        },
+        {
+          "chapter_id": "i-cannot-remember-my-mother",
+          "chapter_title": "I Cannot Remember My Mother",
+          "source_start_page": 30,
+          "source_end_page": 40,
+          "canonical_start_page": 146,
+          "canonical_end_page": 156
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "iebe105.pdf",
+      "source_page_count": 32,
+      "canonical_start_page": 157,
+      "canonical_end_page": 188,
+      "title": "Unit 5",
+      "chapters": [
+        {
+          "chapter_id": "the-world-of-limitless-possibilities",
+          "chapter_title": "The World of Limitless Possibilities",
+          "source_start_page": 1,
+          "source_end_page": 19,
+          "canonical_start_page": 157,
+          "canonical_end_page": 175
+        },
+        {
+          "chapter_id": "nine-gold-medals",
+          "chapter_title": "Nine Gold Medals",
+          "source_start_page": 20,
+          "source_end_page": 32,
+          "canonical_start_page": 176,
+          "canonical_end_page": 188
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "iebe106.pdf",
+      "source_page_count": 34,
+      "canonical_start_page": 189,
+      "canonical_end_page": 222,
+      "title": "Unit 6",
+      "chapters": [
+        {
+          "chapter_id": "twin-melodies",
+          "chapter_title": "Twin Melodies",
+          "source_start_page": 1,
+          "source_end_page": 25,
+          "canonical_start_page": 189,
+          "canonical_end_page": 213
+        },
+        {
+          "chapter_id": "a-friend-found-in-music",
+          "chapter_title": "A Friend Found in Music",
+          "source_start_page": 26,
+          "source_end_page": 34,
+          "canonical_start_page": 214,
+          "canonical_end_page": 222
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "iebe107.pdf",
+      "source_page_count": 28,
+      "canonical_start_page": 223,
+      "canonical_end_page": 250,
+      "title": "Unit 7",
+      "chapters": [
+        {
+          "chapter_id": "carrier-of-words",
+          "chapter_title": "Carrier of Words",
+          "source_start_page": 1,
+          "source_end_page": 17,
+          "canonical_start_page": 223,
+          "canonical_end_page": 239
+        },
+        {
+          "chapter_id": "words",
+          "chapter_title": "Words",
+          "source_start_page": 18,
+          "source_end_page": 28,
+          "canonical_start_page": 240,
+          "canonical_end_page": 250
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "iebe108.pdf",
+      "source_page_count": 28,
+      "canonical_start_page": 251,
+      "canonical_end_page": 278,
+      "title": "Unit 8",
+      "chapters": [
+        {
+          "chapter_id": "follow-that-dream",
+          "chapter_title": "Follow That Dream",
+          "source_start_page": 1,
+          "source_end_page": 14,
+          "canonical_start_page": 251,
+          "canonical_end_page": 264
+        },
+        {
+          "chapter_id": "believe-in-yourself",
+          "chapter_title": "Believe in Yourself",
+          "source_start_page": 15,
+          "source_end_page": 28,
+          "canonical_start_page": 265,
+          "canonical_end_page": 278
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "document_id": "audio-transcripts",
+      "document_type": "appendix",
+      "source_filename": "iebe1a1.pdf",
+      "source_page_count": 20,
+      "canonical_start_page": 279,
+      "canonical_end_page": 298,
+      "title": "Audio Transcripts — Listen and Respond"
+    }
+  ]
+}

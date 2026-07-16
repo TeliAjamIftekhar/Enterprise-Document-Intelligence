@@ -11,9 +11,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.book_config import load_book_config
+
 import fitz
 import numpy as np
 
+
+DEFAULT_BUCKET = "edi-documents-ajam-2026"
 
 BOOK_ID = "grade-9-english-kaveri"
 BOOK_VERSION = "v1"
@@ -494,6 +498,8 @@ def create_batch_pdf(
     source_start_index: int,
     source_end_index: int,
     batch_id: str,
+    book_id: str,
+    book_version: str,
 ) -> dict[str, Any]:
     output_path.parent.mkdir(
         parents=True,
@@ -519,7 +525,7 @@ def create_batch_pdf(
         batch_document.set_metadata(
             {
                 "title": (
-                    f"{BOOK_ID} {BOOK_VERSION} "
+                    f"{book_id} {book_version} "
                     f"{batch_id}"
                 ),
                 "author": "",
@@ -527,7 +533,7 @@ def create_batch_pdf(
                     "Deterministic BDA ingestion batch"
                 ),
                 "keywords": (
-                    f"{BOOK_ID}, {BOOK_VERSION}, "
+                    f"{book_id}, {book_version}, "
                     f"{batch_id}"
                 ),
                 "creator": (
@@ -824,43 +830,200 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "source_pdf",
+        nargs="?",
         type=Path,
+        help=(
+            "Legacy mode source PDF. Omit when "
+            "--config is provided."
+        ),
+    )
+
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help=(
+            "Book configuration JSON. In this "
+            "mode all paths and identity values "
+            "are derived from BookConfig."
+        ),
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        required=True,
+        help=(
+            "Legacy mode batch output directory."
+        ),
     )
 
     parser.add_argument(
         "--manifest",
         type=Path,
-        required=True,
+        help=(
+            "Legacy mode batch manifest path."
+        ),
     )
 
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=DEFAULT_BATCH_SIZE,
+        help=(
+            "Legacy mode page count per batch."
+        ),
     )
 
     parser.add_argument(
         "--expected-pages",
         type=int,
-        default=DEFAULT_EXPECTED_PAGES,
+        help=(
+            "Legacy mode expected source pages."
+        ),
     )
 
     parser.add_argument(
         "--s3-prefix",
-        default=DEFAULT_S3_PREFIX,
+        help=(
+            "Legacy mode S3 key prefix."
+        ),
     )
 
     return parser.parse_args()
 
 
+def resolve_runtime_args(
+    args: argparse.Namespace,
+) -> argparse.Namespace:
+    if args.config is not None:
+        conflicts = {
+            "source_pdf": args.source_pdf,
+            "output_dir": args.output_dir,
+            "manifest": args.manifest,
+            "batch_size": args.batch_size,
+            "expected_pages": (
+                args.expected_pages
+            ),
+            "s3_prefix": args.s3_prefix,
+        }
+
+        supplied_conflicts = [
+            name
+            for name, value in conflicts.items()
+            if value is not None
+        ]
+
+        if supplied_conflicts:
+            raise ValueError(
+                "--config cannot be combined "
+                "with legacy batch arguments: "
+                + ", ".join(
+                    supplied_conflicts
+                )
+            )
+
+        config = load_book_config(
+            args.config
+        )
+
+        args.source_pdf = (
+            config.source_pdf_path
+        )
+        args.output_dir = (
+            config.full_book_root
+            / "batches"
+        )
+        args.manifest = (
+            config.batch_manifest_path
+        )
+        args.batch_size = (
+            config.processing
+            .page_batch_size
+        )
+        args.expected_pages = (
+            config.book.page_count
+        )
+        args.s3_prefix = (
+            config.storage
+            .bda_input_prefix
+            .rstrip("/")
+            + "/full-book/batches"
+        )
+        args.bucket = config.aws.bucket
+        args.book_id = (
+            config.book.book_id
+        )
+        args.book_version = (
+            config.book.version
+        )
+        args.grade = config.book.grade
+        args.configuration_mode = (
+            "book_config"
+        )
+        args.config_path = str(
+            args.config
+        )
+        args.source_s3_uri = (
+            config.source_s3_uri
+        )
+
+        return args
+
+    missing_arguments = []
+
+    if args.source_pdf is None:
+        missing_arguments.append(
+            "source_pdf"
+        )
+
+    if args.output_dir is None:
+        missing_arguments.append(
+            "--output-dir"
+        )
+
+    if args.manifest is None:
+        missing_arguments.append(
+            "--manifest"
+        )
+
+    if missing_arguments:
+        raise ValueError(
+            "Legacy mode requires: "
+            + ", ".join(
+                missing_arguments
+            )
+            + ". Alternatively provide "
+            "--config."
+        )
+
+    if args.batch_size is None:
+        args.batch_size = (
+            DEFAULT_BATCH_SIZE
+        )
+
+    if args.expected_pages is None:
+        args.expected_pages = (
+            DEFAULT_EXPECTED_PAGES
+        )
+
+    if args.s3_prefix is None:
+        args.s3_prefix = (
+            DEFAULT_S3_PREFIX
+        )
+
+    args.bucket = DEFAULT_BUCKET
+    args.book_id = BOOK_ID
+    args.book_version = BOOK_VERSION
+    args.grade = GRADE
+    args.configuration_mode = "legacy"
+    args.config_path = None
+    args.source_s3_uri = None
+
+    return args
+
+
 def main() -> int:
-    args = parse_args()
+    args = resolve_runtime_args(
+        parse_args()
+    )
 
     if not args.source_pdf.is_file():
         raise FileNotFoundError(
@@ -899,8 +1062,13 @@ def main() -> int:
     print("=" * 44)
     print("FULL BOOK BATCH PREPARATION")
     print("=" * 44)
-    print(f"Book:           {BOOK_ID}")
-    print(f"Version:        {BOOK_VERSION}")
+    print(
+        f"Book:           {args.book_id}"
+    )
+    print(
+        f"Version:        "
+        f"{args.book_version}"
+    )
     print(f"Source:         {args.source_pdf}")
     print(
         f"Source size:    "
@@ -988,6 +1156,10 @@ def main() -> int:
                     source_end_index
                 ),
                 batch_id=batch_id,
+                book_id=args.book_id,
+                book_version=(
+                    args.book_version
+                ),
             )
 
             s3_key = (
@@ -1008,8 +1180,7 @@ def main() -> int:
                     ),
                     "s3_key": s3_key,
                     "s3_uri": (
-                        "s3://"
-                        "edi-documents-ajam-2026/"
+                        f"s3://{args.bucket}/"
                         f"{s3_key}"
                     ),
                     "source_page_start": (
@@ -1086,12 +1257,25 @@ def main() -> int:
         "schema_version": "1.0",
         "generated_at": utc_now(),
         "status": "PREPARED",
-        "book_id": BOOK_ID,
-        "book_version": BOOK_VERSION,
-        "grade": GRADE,
+        "book_id": args.book_id,
+        "book_version": (
+            args.book_version
+        ),
+        "grade": args.grade,
+        "configuration": {
+            "mode": (
+                args.configuration_mode
+            ),
+            "config_path": (
+                args.config_path
+            ),
+        },
         "source": {
             "local_path": str(
                 args.source_pdf
+            ),
+            "configured_s3_uri": (
+                args.source_s3_uri
             ),
             "page_count": (
                 args.expected_pages
@@ -1117,8 +1301,7 @@ def main() -> int:
                 "batch_page_number"
             ),
             "s3_prefix": (
-                "s3://"
-                "edi-documents-ajam-2026/"
+                f"s3://{args.bucket}/"
                 f"{args.s3_prefix.rstrip('/')}/"
             ),
         },
@@ -1195,6 +1378,7 @@ def main() -> int:
         "batches": batches,
         "uploaded": False,
         "bda_invoked": False,
+        "aws_calls": 0,
     }
 
     atomic_write_json(
@@ -1263,6 +1447,7 @@ def main() -> int:
     print(f"Manifest:          {args.manifest}")
     print("Uploaded:          False")
     print("BDA invoked:       False")
+    print("AWS calls:         0")
 
     return 0
 

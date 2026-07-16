@@ -14,6 +14,11 @@ from botocore.exceptions import (
     ClientError,
 )
 
+from src.opensearch_index_schema import (
+    build_expected_field_types,
+    build_index_plan,
+)
+
 
 REGION = "us-east-1"
 
@@ -192,6 +197,64 @@ RETRYABLE_CODES = {
 }
 
 
+
+def configure_runtime(
+    config_path: Path | None,
+) -> dict[str, Any]:
+    global REGION
+    global COLLECTION_NAME
+    global EXPECTED_COLLECTION_ID
+    global INDEX_NAME
+    global VECTOR_DIMENSIONS
+    global OUTPUT_PATH
+    global INDEX_SCHEMA
+    global REQUIRED_FIELD_TYPES
+
+    plan = build_index_plan(
+        config_path
+    )
+
+    runtime = plan["runtime"]
+
+    REGION = str(
+        runtime["region"]
+    )
+
+    COLLECTION_NAME = str(
+        runtime["collection_name"]
+    )
+
+    EXPECTED_COLLECTION_ID = str(
+        runtime["collection_id"]
+    )
+
+    INDEX_NAME = str(
+        runtime["index_name"]
+    )
+
+    VECTOR_DIMENSIONS = int(
+        runtime["vector_dimensions"]
+    )
+
+    OUTPUT_PATH = Path(
+        str(runtime["output_path"])
+    )
+
+    INDEX_SCHEMA = plan["schema"]
+
+    REQUIRED_FIELD_TYPES = (
+        build_expected_field_types(
+            include_context_fields=bool(
+                runtime[
+                    "include_context_fields"
+                ]
+            )
+        )
+    )
+
+    return plan
+
+
 def utc_now() -> str:
     return datetime.now(
         timezone.utc
@@ -230,8 +293,10 @@ def write_report(
 def get_collection(
     client: Any,
 ) -> dict[str, Any]:
+    global COLLECTION_NAME
+
     response = client.batch_get_collection(
-        names=[COLLECTION_NAME]
+        ids=[EXPECTED_COLLECTION_ID]
     )
 
     details = response.get(
@@ -244,11 +309,23 @@ def get_collection(
         list,
     ) or len(details) != 1:
         raise RuntimeError(
-            "Expected exactly one collection named "
-            f"{COLLECTION_NAME}."
+            "Expected exactly one collection with ID "
+            f"{EXPECTED_COLLECTION_ID}."
         )
 
     collection = details[0]
+
+    actual_collection_name = collection.get(
+        "name"
+    )
+
+    if (
+        isinstance(actual_collection_name, str)
+        and actual_collection_name.strip()
+    ):
+        COLLECTION_NAME = (
+            actual_collection_name.strip()
+        )
 
     if collection.get("id") != EXPECTED_COLLECTION_ID:
         raise RuntimeError(
@@ -595,41 +672,182 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "When supplied, index identity, "
+            "dimensions, schema and report path "
+            "are derived from BookConfig."
+        ),
+    )
+
+    parser.add_argument(
+        "--local-only",
+        action="store_true",
+        help=(
+            "Validate the generated schema and "
+            "write a local planning report "
+            "without creating an AWS client."
+        ),
+    )
+
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
 
+    plan = configure_runtime(
+        args.config
+    )
+
+    runtime = plan["runtime"]
+
+    if args.local_only and args.create:
+        raise ValueError(
+            "--local-only cannot be combined "
+            "with --create."
+        )
+
+    print("============================================")
+    print("TEXTBOOK HYBRID INDEX")
+    print("============================================")
+    print(f"Mode:         {runtime['mode']}")
+    print(f"Region:       {REGION}")
+    print(f"Collection:   {COLLECTION_NAME}")
+    print(
+        f"Collection ID:{EXPECTED_COLLECTION_ID}"
+    )
+    print(f"Index:        {INDEX_NAME}")
+    print(f"Dimensions:   {VECTOR_DIMENSIONS}")
+    print(
+        "Context fields:"
+        f" {runtime['include_context_fields']}"
+    )
+    print(
+        f"Fields:       "
+        f"{len(INDEX_SCHEMA['mappings']['properties'])}"
+    )
+    print("Space type:   l2")
+    print("Method:       serverless-managed")
+    print("Compression:  1x")
+    print(f"Local only:   {args.local_only}")
+    print(f"Create:       {args.create}")
+    print()
+
+    if args.local_only:
+        report = {
+            "schema_version": "1.0",
+            "generated_at": utc_now(),
+            "status": "LOCAL_VALIDATED",
+            "action": "local_validated",
+            "configuration": runtime,
+            "local_only": True,
+            "region": REGION,
+            "collection": {
+                "name": COLLECTION_NAME,
+                "id": EXPECTED_COLLECTION_ID,
+                "endpoint": runtime.get(
+                    "collection_endpoint"
+                ),
+                "status": "NOT_QUERIED",
+                "type": "VECTORSEARCH",
+            },
+            "index": {
+                "name": INDEX_NAME,
+                "vector_dimensions": (
+                    VECTOR_DIMENSIONS
+                ),
+                "field_count": len(
+                    INDEX_SCHEMA[
+                        "mappings"
+                    ][
+                        "properties"
+                    ]
+                ),
+                "include_context_fields": (
+                    runtime[
+                        "include_context_fields"
+                    ]
+                ),
+                "space_type": "l2",
+                "method": (
+                    "serverless-managed"
+                ),
+                "compression_level": "1x",
+            },
+            "requested_schema": INDEX_SCHEMA,
+            "actual_schema": None,
+            "schema_validation_errors": (
+                plan[
+                    "schema_validation_errors"
+                ]
+            ),
+            "resources_created": False,
+            "aws_calls": 0,
+        }
+
+        write_report(report)
+
+        print("LOCAL VALIDATION PASSED")
+        print(
+            f"Index:       {INDEX_NAME}"
+        )
+        print(
+            f"Fields:      "
+            f"{len(INDEX_SCHEMA['mappings']['properties'])}"
+        )
+        print(
+            f"Vector:      "
+            f"{VECTOR_DIMENSIONS} dimensions"
+        )
+        print(
+            f"Report:      {OUTPUT_PATH}"
+        )
+        print("AWS calls:   0")
+
+        return 0
+
     client = boto3.client(
         "opensearchserverless",
         region_name=REGION,
     )
 
-    collection = get_collection(client)
+    collection = get_collection(
+        client
+    )
 
     collection_id = str(
         collection["id"]
     )
 
+    configured_endpoint = runtime.get(
+        "collection_endpoint"
+    )
+
+    actual_endpoint = collection.get(
+        "collectionEndpoint"
+    )
+
+    if (
+        configured_endpoint
+        and actual_endpoint
+        and str(actual_endpoint).rstrip("/")
+        != str(configured_endpoint).rstrip("/")
+    ):
+        raise RuntimeError(
+            "Collection endpoint mismatch. "
+            f"Expected={configured_endpoint}, "
+            f"actual={actual_endpoint}"
+        )
+
     existing_schema = get_index_schema(
         client=client,
         collection_id=collection_id,
     )
-
-    print("============================================")
-    print("TEXTBOOK HYBRID INDEX")
-    print("============================================")
-    print(f"Region:       {REGION}")
-    print(f"Collection:   {COLLECTION_NAME}")
-    print(f"Collection ID:{collection_id}")
-    print(f"Index:        {INDEX_NAME}")
-    print(f"Dimensions:   {VECTOR_DIMENSIONS}")
-    print("Space type:   l2")
-    print("Method:       serverless-managed")
-    print("Compression:  1x")
-    print(f"Create:       {args.create}")
-    print()
 
     action = "planned"
     final_schema = existing_schema
@@ -641,7 +859,8 @@ def main() -> int:
 
         if errors:
             raise RuntimeError(
-                "Existing index schema is incompatible:\n- "
+                "Existing index schema is "
+                "incompatible:\n- "
                 + "\n- ".join(errors)
             )
 
@@ -673,7 +892,8 @@ def main() -> int:
 
         if errors:
             raise RuntimeError(
-                "Created index schema validation failed:\n- "
+                "Created index schema "
+                "validation failed:\n- "
                 + "\n- ".join(errors)
             )
 
@@ -697,6 +917,8 @@ def main() -> int:
         "generated_at": utc_now(),
         "status": status,
         "action": action,
+        "configuration": runtime,
+        "local_only": False,
         "region": REGION,
         "collection": {
             "name": COLLECTION_NAME,
@@ -715,6 +937,18 @@ def main() -> int:
             "name": INDEX_NAME,
             "vector_dimensions": (
                 VECTOR_DIMENSIONS
+            ),
+            "field_count": len(
+                INDEX_SCHEMA[
+                    "mappings"
+                ][
+                    "properties"
+                ]
+            ),
+            "include_context_fields": (
+                runtime[
+                    "include_context_fields"
+                ]
             ),
             "space_type": "l2",
             "method": "serverless-managed",

@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.book_config import load_book_config
+
 
 FULL_BOOK_ROOT = Path(
     "data/multimodal-output/"
@@ -45,6 +47,249 @@ PYTHONPATH_ENTRIES = [
     str(SCRIPTS_DIR),
     "workers/multimodal-ingestion",
 ]
+
+
+
+def resolve_runner_runtime(
+    config_path: Path | None,
+) -> dict[str, Any]:
+    if config_path is None:
+        return {
+            "mode": "legacy",
+            "config_path": None,
+            "book_id": (
+                "grade-9-english-kaveri"
+            ),
+            "book_version": "v1",
+            "vector_dimensions": 1024,
+            "manifest_path": str(
+                DEFAULT_MANIFEST
+            ),
+            "jobs_dir": str(
+                DEFAULT_JOBS_DIR
+            ),
+            "results_root": str(
+                DEFAULT_RESULTS_ROOT
+            ),
+            "report_path": str(
+                DEFAULT_REPORT
+            ),
+            "start_batch": "batch-0003",
+            "end_batch": "batch-0015",
+        }
+
+    config = load_book_config(
+        config_path
+    )
+
+    full_book_root = (
+        Path(config.storage.local_root)
+        / "full-book"
+    )
+
+    return {
+        "mode": "book_config",
+        "config_path": str(config_path),
+        "book_id": config.book.book_id,
+        "book_version": (
+            config.book.version
+        ),
+        "vector_dimensions": int(
+            config.models.embedding.dimensions
+        ),
+        "manifest_path": str(
+            full_book_root
+            / "full-book-batch-manifest.json"
+        ),
+        "jobs_dir": str(
+            full_book_root
+            / "bda-jobs"
+        ),
+        "results_root": str(
+            full_book_root
+            / "bda-results"
+        ),
+        "report_path": str(
+            full_book_root
+            / "full-book-sequential-run-report.json"
+        ),
+        "start_batch": None,
+        "end_batch": None,
+    }
+
+
+def validate_manifest_identity(
+    manifest: dict[str, Any],
+    runtime: dict[str, Any],
+) -> None:
+    if runtime["mode"] == "legacy":
+        return
+
+    expected_book_id = str(
+        runtime["book_id"]
+    )
+
+    expected_book_version = str(
+        runtime["book_version"]
+    )
+
+    actual_book_id = manifest.get(
+        "book_id"
+    )
+
+    actual_book_version = manifest.get(
+        "book_version"
+    )
+
+    if actual_book_id != expected_book_id:
+        raise RuntimeError(
+            "Manifest book_id does not "
+            "match configuration: "
+            f"expected={expected_book_id!r}, "
+            f"actual={actual_book_id!r}"
+        )
+
+    if (
+        actual_book_version
+        != expected_book_version
+    ):
+        raise RuntimeError(
+            "Manifest book_version does not "
+            "match configuration: "
+            f"expected="
+            f"{expected_book_version!r}, "
+            f"actual={actual_book_version!r}"
+        )
+
+
+def manifest_batch_bounds(
+    manifest: dict[str, Any],
+) -> tuple[str, str]:
+    batches = manifest.get(
+        "batches",
+        [],
+    )
+
+    if not isinstance(batches, list):
+        raise RuntimeError(
+            "Manifest batches field is invalid."
+        )
+
+    batch_ids = [
+        str(batch["batch_id"])
+        for batch in batches
+        if isinstance(batch, dict)
+        and batch.get("batch_id")
+    ]
+
+    if not batch_ids:
+        raise RuntimeError(
+            "Manifest contains no batches."
+        )
+
+    ordered = sorted(
+        batch_ids,
+        key=batch_number,
+    )
+
+    return ordered[0], ordered[-1]
+
+
+def config_cli_args(
+    config_path: Path | None,
+) -> list[str]:
+    if config_path is None:
+        return []
+
+    return [
+        "--config",
+        str(config_path),
+    ]
+
+
+def build_bda_preflight_command(
+    manifest_path: Path,
+    batch_id: str,
+    preflight_path: Path,
+    config_path: Path | None,
+) -> list[str]:
+    return [
+        sys.executable,
+        str(
+            SCRIPTS_DIR
+            / "preflight_full_book_bda_pilot.py"
+        ),
+        "--manifest",
+        str(manifest_path),
+        "--batch-id",
+        batch_id,
+        "--report",
+        str(preflight_path),
+        *config_cli_args(config_path),
+    ]
+
+
+def build_titan_command(
+    records_path: Path,
+    titan_dir: Path,
+    vector_dimensions: int,
+) -> list[str]:
+    return [
+        sys.executable,
+        str(
+            SCRIPTS_DIR
+            / "embed_records_titan_v2.py"
+        ),
+        str(records_path),
+        "--output-dir",
+        str(titan_dir),
+        "--dimensions",
+        str(vector_dimensions),
+    ]
+
+
+def build_bulk_command(
+    embeddings_path: Path,
+    bulk_dir: Path,
+    config_path: Path | None,
+) -> list[str]:
+    return [
+        sys.executable,
+        str(
+            SCRIPTS_DIR
+            / "prepare_opensearch_bulk.py"
+        ),
+        str(embeddings_path),
+        "--output-dir",
+        str(bulk_dir),
+        *config_cli_args(config_path),
+    ]
+
+
+def build_upload_command(
+    bulk_dir: Path,
+    upload_dir: Path,
+    config_path: Path | None,
+) -> list[str]:
+    return [
+        sys.executable,
+        str(
+            SCRIPTS_DIR
+            / "upload_opensearch_bulk.py"
+        ),
+        str(
+            bulk_dir
+            / "bulk-index.ndjson"
+        ),
+        "--preparation-report",
+        str(
+            bulk_dir
+            / "bulk-preparation-report.json"
+        ),
+        "--output-dir",
+        str(upload_dir),
+        *config_cli_args(config_path),
+    ]
 
 
 def utc_now() -> str:
@@ -294,15 +539,14 @@ def successful_job(
 
 def successful_preflight(
     path: Path,
+    config_path: Path | None = None,
 ) -> bool:
     if not path.is_file():
         return False
 
-    report = load_json_object(
-        path
-    )
+    report = load_json_object(path)
 
-    return (
+    valid = (
         report.get("status")
         == "PREFLIGHT_PASSED"
         and report.get("bda_invoked")
@@ -311,6 +555,39 @@ def successful_preflight(
             "invocation_submitted"
         )
         is False
+    )
+
+    if not valid:
+        return False
+
+    if config_path is None:
+        return True
+
+    runtime = resolve_runner_runtime(
+        config_path
+    )
+
+    configuration = report.get(
+        "configuration"
+    )
+
+    if not isinstance(
+        configuration,
+        dict,
+    ):
+        return False
+
+    return (
+        report.get("book_id")
+        == runtime["book_id"]
+        and report.get("book_version")
+        == runtime["book_version"]
+        and configuration.get("mode")
+        == "book_config"
+        and configuration.get(
+            "config_path"
+        )
+        == str(config_path)
     )
 
 
@@ -692,6 +969,8 @@ def process_batch(
     manifest_path: Path,
     jobs_dir: Path,
     results_root: Path,
+    config_path: Path | None,
+    vector_dimensions: int,
 ) -> dict[str, Any]:
     batch_id = str(
         batch["batch_id"]
@@ -735,6 +1014,51 @@ def process_batch(
         job_path
     )
 
+    # Hard safety boundary: dry-run mode must return
+    # before any subprocess, AWS, model, or OpenSearch call.
+    if not execute:
+        if existing_job is None:
+            result["stages"]["preflight"] = "RUN"
+            result["stages"]["bda"] = "RUN"
+            downstream_status = "RUN_AFTER_BDA"
+
+            print(
+                "PLAN: preflight → BDA → download "
+                "→ normalize → validate → embeddings "
+                "→ OpenSearch"
+            )
+
+        else:
+            result["stages"]["preflight"] = (
+                "SKIPPED_COMPLETED"
+            )
+            result["stages"]["bda"] = (
+                "SKIPPED_COMPLETED"
+            )
+            downstream_status = "CHECK_OR_RESUME"
+
+            print(
+                "PLAN: existing BDA job is completed; "
+                "downstream stages would be checked "
+                "or resumed in execute mode"
+            )
+
+        for stage in (
+            "download",
+            "normalize",
+            "validate",
+            "prepare_embeddings",
+            "titan_embeddings",
+            "prepare_bulk",
+            "upload_opensearch",
+        ):
+            result["stages"][stage] = (
+                downstream_status
+            )
+
+        result["status"] = "PLANNED"
+        return result
+
     if existing_job is None:
         result["stages"]["preflight"] = (
             "RUN"
@@ -765,7 +1089,8 @@ def process_batch(
 
         if preflight_path.exists():
             if not successful_preflight(
-                preflight_path
+                preflight_path,
+                config_path=config_path,
             ):
                 raise RuntimeError(
                     "Existing preflight report is "
@@ -780,19 +1105,12 @@ def process_batch(
         else:
             run_command(
                 f"{batch_id}: BDA PREFLIGHT",
-                [
-                    sys.executable,
-                    str(
-                        SCRIPTS_DIR
-                        / "preflight_full_book_bda_pilot.py"
-                    ),
-                    "--manifest",
-                    str(manifest_path),
-                    "--batch-id",
-                    batch_id,
-                    "--report",
-                    str(preflight_path),
-                ],
+                build_bda_preflight_command(
+                    manifest_path=manifest_path,
+                    batch_id=batch_id,
+                    preflight_path=preflight_path,
+                    config_path=config_path,
+                ),
             )
 
         run_command(
@@ -1069,18 +1387,13 @@ def process_batch(
 
         run_command(
             f"{batch_id}: TITAN EMBEDDINGS",
-            [
-                sys.executable,
-                str(
-                    SCRIPTS_DIR
-                    / "embed_records_titan_v2.py"
+            build_titan_command(
+                records_path=records_path,
+                titan_dir=titan_dir,
+                vector_dimensions=(
+                    vector_dimensions
                 ),
-                str(records_path),
-                "--output-dir",
-                str(titan_dir),
-                "--dimensions",
-                "1024",
-            ],
+            ),
         )
 
         titan_manifest = (
@@ -1138,16 +1451,11 @@ def process_batch(
 
         run_command(
             f"{batch_id}: PREPARE OPENSEARCH BULK",
-            [
-                sys.executable,
-                str(
-                    SCRIPTS_DIR
-                    / "prepare_opensearch_bulk.py"
-                ),
-                str(embeddings_path),
-                "--output-dir",
-                str(bulk_dir),
-            ],
+            build_bulk_command(
+                embeddings_path=embeddings_path,
+                bulk_dir=bulk_dir,
+                config_path=config_path,
+            ),
         )
 
         bulk_report = (
@@ -1198,24 +1506,11 @@ def process_batch(
 
         run_command(
             f"{batch_id}: UPLOAD TO OPENSEARCH",
-            [
-                sys.executable,
-                str(
-                    SCRIPTS_DIR
-                    / "upload_opensearch_bulk.py"
-                ),
-                str(
-                    bulk_dir
-                    / "bulk-index.ndjson"
-                ),
-                "--preparation-report",
-                str(
-                    bulk_dir
-                    / "bulk-preparation-report.json"
-                ),
-                "--output-dir",
-                str(upload_dir),
-            ],
+            build_upload_command(
+                bulk_dir=bulk_dir,
+                upload_dir=upload_dir,
+                config_path=config_path,
+            ),
         )
 
         upload_report = successful_upload(
@@ -1282,37 +1577,48 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "Paths, identity and embedding "
+            "dimensions are derived from BookConfig."
+        ),
+    )
+
+    parser.add_argument(
         "--manifest",
         type=Path,
-        default=DEFAULT_MANIFEST,
+        default=None,
     )
 
     parser.add_argument(
         "--jobs-dir",
         type=Path,
-        default=DEFAULT_JOBS_DIR,
+        default=None,
     )
 
     parser.add_argument(
         "--results-root",
         type=Path,
-        default=DEFAULT_RESULTS_ROOT,
+        default=None,
     )
 
     parser.add_argument(
         "--start-batch",
-        default="batch-0003",
+        default=None,
     )
 
     parser.add_argument(
         "--end-batch",
-        default="batch-0015",
+        default=None,
     )
 
     parser.add_argument(
         "--report",
         type=Path,
-        default=DEFAULT_REPORT,
+        default=None,
     )
 
     parser.add_argument(
@@ -1331,14 +1637,59 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
-    manifest = load_json_object(
+    runtime = resolve_runner_runtime(
+        args.config
+    )
+
+    manifest_path = (
         args.manifest
+        or Path(runtime["manifest_path"])
+    )
+
+    jobs_dir = (
+        args.jobs_dir
+        or Path(runtime["jobs_dir"])
+    )
+
+    results_root = (
+        args.results_root
+        or Path(runtime["results_root"])
+    )
+
+    report_path = (
+        args.report
+        or Path(runtime["report_path"])
+    )
+
+    manifest = load_json_object(
+        manifest_path
+    )
+
+    validate_manifest_identity(
+        manifest,
+        runtime,
+    )
+
+    first_batch, last_batch = (
+        manifest_batch_bounds(manifest)
+    )
+
+    start_batch = (
+        args.start_batch
+        or runtime.get("start_batch")
+        or first_batch
+    )
+
+    end_batch = (
+        args.end_batch
+        or runtime.get("end_batch")
+        or last_batch
     )
 
     selected_batches = select_batches(
         manifest=manifest,
-        start_batch=args.start_batch,
-        end_batch=args.end_batch,
+        start_batch=start_batch,
+        end_batch=end_batch,
     )
 
     mode = (
@@ -1353,11 +1704,16 @@ def main() -> int:
         "updated_at": utc_now(),
         "status": "RUNNING",
         "mode": mode,
+        "configuration": runtime,
         "manifest_path": str(
-            args.manifest
+            manifest_path
         ),
-        "start_batch": args.start_batch,
-        "end_batch": args.end_batch,
+        "jobs_dir": str(jobs_dir),
+        "results_root": str(
+            results_root
+        ),
+        "start_batch": start_batch,
+        "end_batch": end_batch,
         "selected_batch_count": len(
             selected_batches
         ),
@@ -1365,7 +1721,7 @@ def main() -> int:
     }
 
     atomic_write_json(
-        args.report,
+        report_path,
         report,
     )
 
@@ -1374,38 +1730,53 @@ def main() -> int:
     print("=" * 72)
     print(f"Mode:          {mode}")
     print(
+        f"Config mode:   "
+        f"{runtime['mode']}"
+    )
+    print(
+        f"Book version:  "
+        f"{runtime['book_version']}"
+    )
+    print(
+        f"Dimensions:    "
+        f"{runtime['vector_dimensions']}"
+    )
+    print(
         f"Batch range:   "
-        f"{args.start_batch} → "
-        f"{args.end_batch}"
+        f"{start_batch} → {end_batch}"
     )
     print(
         f"Batch count:   "
         f"{len(selected_batches)}"
     )
-    print(
-        f"Report:        {args.report}"
-    )
+    print(f"Manifest:      {manifest_path}")
+    print(f"Results root:  {results_root}")
+    print(f"Report:        {report_path}")
 
     try:
         for batch in selected_batches:
             batch_result = process_batch(
                 batch,
                 execute=args.execute,
-                manifest_path=args.manifest,
-                jobs_dir=args.jobs_dir,
-                results_root=args.results_root,
+                manifest_path=manifest_path,
+                jobs_dir=jobs_dir,
+                results_root=results_root,
+                config_path=args.config,
+                vector_dimensions=int(
+                    runtime[
+                        "vector_dimensions"
+                    ]
+                ),
             )
 
             report["batches"].append(
                 batch_result
             )
 
-            report["updated_at"] = (
-                utc_now()
-            )
+            report["updated_at"] = utc_now()
 
             atomic_write_json(
-                args.report,
+                report_path,
                 report,
             )
 
@@ -1415,7 +1786,7 @@ def main() -> int:
         report["error"] = str(error)
 
         atomic_write_json(
-            args.report,
+            report_path,
             report,
         )
 
@@ -1442,7 +1813,7 @@ def main() -> int:
     report["completed_at"] = utc_now()
 
     atomic_write_json(
-        args.report,
+        report_path,
         report,
     )
 
@@ -1470,7 +1841,7 @@ def main() -> int:
         print("Titan calls:       0")
         print("OpenSearch writes: 0")
 
-    print(f"Report:            {args.report}")
+    print(f"Report:            {report_path}")
 
     return 0
 

@@ -18,8 +18,8 @@ vectorstore/
 .aws/
 *.pem
 *.key
-credentials
-config
+/credentials
+/config
 
 # Logs
 *.log

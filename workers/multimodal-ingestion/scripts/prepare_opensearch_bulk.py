@@ -10,11 +10,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.book_config import load_book_config
+
 
 INDEX_NAME = "grade-9-english-kaveri-v1"
 VECTOR_DIMENSIONS = 1024
 
-DOCUMENT_FIELDS = (
+REQUIRED_DOCUMENT_FIELDS = (
     "schema_version",
     "record_id",
     "book_id",
@@ -44,9 +46,126 @@ DOCUMENT_FIELDS = (
     "embedding",
 )
 
+OPTIONAL_CONTEXT_FIELDS = (
+    "page_context_status",
+    "chapter_context_status",
+    "unresolved_source_page_numbers",
+    "page_types",
+    "document_ids",
+    "document_titles",
+    "document_types",
+    "unit_numbers",
+    "chapter_ids",
+    "chapter_titles",
+    "source_filenames",
+    "document_id",
+    "document_title",
+    "document_type",
+    "unit_number",
+    "chapter_id",
+    "chapter_title",
+    "section_id",
+    "context_citation_label",
+)
+
+
+DOCUMENT_FIELDS = (
+    REQUIRED_DOCUMENT_FIELDS
+    + OPTIONAL_CONTEXT_FIELDS
+)
+
+
 LOCAL_ONLY_FIELDS = {
     "asset_local_paths",
 }
+
+
+
+def resolve_runtime_identity(
+    config_path: Path | None,
+) -> dict[str, Any]:
+    if config_path is None:
+        return {
+            "mode": "legacy",
+            "config_path": None,
+            "book_id": None,
+            "book_version": None,
+            "index_name": INDEX_NAME,
+            "vector_dimensions": (
+                VECTOR_DIMENSIONS
+            ),
+        }
+
+    config = load_book_config(
+        config_path
+    )
+
+    return {
+        "mode": "book_config",
+        "config_path": str(
+            config_path
+        ),
+        "book_id": config.book.book_id,
+        "book_version": (
+            config.book.version
+        ),
+        "index_name": (
+            config.opensearch.index_name
+        ),
+        "vector_dimensions": (
+            config.models.embedding.dimensions
+        ),
+    }
+
+
+def validate_records_match_runtime(
+    records: list[dict[str, Any]],
+    runtime: dict[str, Any],
+) -> None:
+    if runtime["mode"] == "legacy":
+        return
+
+    expected_book_id = runtime[
+        "book_id"
+    ]
+
+    expected_book_version = runtime[
+        "book_version"
+    ]
+
+    for line_number, record in enumerate(
+        records,
+        start=1,
+    ):
+        record_id = str(
+            record.get(
+                "record_id",
+                f"line-{line_number}",
+            )
+        )
+
+        if (
+            record.get("book_id")
+            != expected_book_id
+        ):
+            raise ValueError(
+                f"Record {record_id} book_id "
+                "does not match configuration: "
+                f"expected={expected_book_id!r}, "
+                f"actual={record.get('book_id')!r}"
+            )
+
+        if (
+            record.get("book_version")
+            != expected_book_version
+        ):
+            raise ValueError(
+                f"Record {record_id} book_version "
+                "does not match configuration: "
+                f"expected={expected_book_version!r}, "
+                f"actual="
+                f"{record.get('book_version')!r}"
+            )
 
 
 def utc_now() -> str:
@@ -126,6 +245,9 @@ def vector_norm(
 def validate_record(
     record: dict[str, Any],
     line_number: int,
+    vector_dimensions: int = (
+        VECTOR_DIMENSIONS
+    ),
 ) -> tuple[dict[str, Any], float]:
     record_id = record.get("record_id")
 
@@ -152,7 +274,7 @@ def validate_record(
         )
 
     missing_fields = (
-        set(DOCUMENT_FIELDS)
+        set(REQUIRED_DOCUMENT_FIELDS)
         - record_fields
     )
 
@@ -169,11 +291,11 @@ def validate_record(
             f"Record {record_id} has no embedding."
         )
 
-    if len(vector) != VECTOR_DIMENSIONS:
+    if len(vector) != vector_dimensions:
         raise ValueError(
             f"Record {record_id} vector length is "
             f"{len(vector)}, expected "
-            f"{VECTOR_DIMENSIONS}."
+            f"{vector_dimensions}."
         )
 
     numeric_vector: list[float] = []
@@ -205,7 +327,7 @@ def validate_record(
 
     if record.get(
         "embedding_dimensions"
-    ) != VECTOR_DIMENSIONS:
+    ) != vector_dimensions:
         raise ValueError(
             f"Record {record_id} has incorrect "
             "embedding_dimensions metadata."
@@ -213,7 +335,7 @@ def validate_record(
 
     if record.get(
         "vector_length"
-    ) != VECTOR_DIMENSIONS:
+    ) != vector_dimensions:
         raise ValueError(
             f"Record {record_id} has incorrect "
             "vector_length metadata."
@@ -365,6 +487,11 @@ def validate_record(
     document = {
         field: record[field]
         for field in DOCUMENT_FIELDS
+        if field in record
+        and field not in {
+            "locations",
+            "embedding",
+        }
     }
 
     document["locations"] = (
@@ -450,14 +577,43 @@ def parse_args() -> argparse.Namespace:
         required=True,
     )
 
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "When provided, index identity and "
+            "vector dimensions are derived from "
+            "BookConfig."
+        ),
+    )
+
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
 
+    runtime = resolve_runtime_identity(
+        args.config
+    )
+
+    index_name = str(
+        runtime["index_name"]
+    )
+
+    vector_dimensions = int(
+        runtime["vector_dimensions"]
+    )
+
     records = load_jsonl(
         args.embeddings_jsonl
+    )
+
+    validate_records_match_runtime(
+        records,
+        runtime,
     )
 
     if not records:
@@ -552,6 +708,9 @@ def main() -> int:
         document, norm = validate_record(
             record=record,
             line_number=line_number,
+            vector_dimensions=(
+                vector_dimensions
+            ),
         )
 
         norms.append(norm)
@@ -578,7 +737,7 @@ def main() -> int:
 
         action = {
             "index": {
-                "_index": INDEX_NAME,
+                "_index": index_name,
                 "_id": record_id,
             }
         }
@@ -639,7 +798,8 @@ def main() -> int:
         "schema_version": "1.0",
         "generated_at": utc_now(),
         "status": "PREPARED",
-        "index_name": INDEX_NAME,
+        "configuration": runtime,
+        "index_name": index_name,
         "input": {
             "path": str(
                 args.embeddings_jsonl
@@ -673,7 +833,7 @@ def main() -> int:
                 removed_local_field_count
             ),
             "vector_dimensions": (
-                VECTOR_DIMENSIONS
+                vector_dimensions
             ),
             "minimum_vector_norm": min(
                 norms
@@ -717,7 +877,7 @@ def main() -> int:
         f"{removed_local_field_count}"
     )
     print(
-        f"Vector dimensions:   {VECTOR_DIMENSIONS}"
+        f"Vector dimensions:   {vector_dimensions}"
     )
     print(
         "Vector norm range:   "

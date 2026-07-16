@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from src.page_context import (
+    build_page_context_index,
+    resolve_page_context,
+)
+
 
 SCHEMA_VERSION = "1.1"
 
@@ -380,6 +385,12 @@ def normalize(
         sample_metadata.get("sample_s3_uri")
     )
 
+    page_context_index = (
+        build_page_context_index(
+            sample_metadata
+        )
+    )
+
     asset_directory = (
         result_json_path.parent / "assets"
     )
@@ -392,6 +403,16 @@ def normalize(
     missing_page_reference_count = 0
     missing_asset_count = 0
     missing_assets: list[str] = []
+
+    page_context_status_counts: dict[
+        str,
+        int,
+    ] = {}
+
+    chapter_context_status_counts: dict[
+        str,
+        int,
+    ] = {}
 
     for element_index, raw_element in enumerate(elements):
         if not isinstance(raw_element, dict):
@@ -438,6 +459,48 @@ def normalize(
             source_start_page + page_index
             for page_index in sample_page_indices
         ]
+
+        page_context = None
+
+        if page_context_index:
+            page_context = (
+                resolve_page_context(
+                    source_page_numbers,
+                    page_context_index,
+                )
+            )
+
+            page_status = str(
+                page_context[
+                    "page_context_status"
+                ]
+            )
+
+            chapter_status = str(
+                page_context[
+                    "chapter_context_status"
+                ]
+            )
+
+            page_context_status_counts[
+                page_status
+            ] = (
+                page_context_status_counts.get(
+                    page_status,
+                    0,
+                )
+                + 1
+            )
+
+            chapter_context_status_counts[
+                chapter_status
+            ] = (
+                chapter_context_status_counts.get(
+                    chapter_status,
+                    0,
+                )
+                + 1
+            )
 
         locations = get_locations(
             element=raw_element,
@@ -602,6 +665,7 @@ def normalize(
             "asset_s3_uris": all_asset_s3_uris,
             "asset_local_paths": all_asset_local_paths,
             "retrieval_priority": retrieval_priority,
+            **(page_context or {}),
             "quality_flags": quality_flags,
         }
 
@@ -639,6 +703,7 @@ def normalize(
                     "retrieval_priority": (
                         retrieval_priority
                     ),
+                    **(page_context or {}),
                     "quality_flags": quality_flags,
                 }
             )
@@ -678,6 +743,7 @@ def normalize(
                     "crop_local_paths": (
                         local_asset_paths
                     ),
+                    **(page_context or {}),
                     "quality_flags": quality_flags,
                 }
             )
@@ -744,6 +810,18 @@ def normalize(
         "missing_page_reference_count": (
             missing_page_reference_count
         ),
+        "page_context_metadata_available": (
+            bool(page_context_index)
+        ),
+        "page_context_record_count": len(
+            page_context_index
+        ),
+        "page_context_status_counts": (
+            page_context_status_counts
+        ),
+        "chapter_context_status_counts": (
+            chapter_context_status_counts
+        ),
         "missing_asset_count": missing_asset_count,
         "missing_assets": sorted(
             set(missing_assets)
@@ -756,6 +834,9 @@ def normalize(
             "figure_ocr_and_summary_are_separate": True,
             "page_indices_fallback_to_locations": True,
             "source_pages_are_one_based": True,
+            "chapter_context_from_page_metadata": (
+                bool(page_context_index)
+            ),
         },
     }
 

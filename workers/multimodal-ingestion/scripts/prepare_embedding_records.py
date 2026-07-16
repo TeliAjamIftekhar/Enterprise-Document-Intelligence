@@ -408,6 +408,167 @@ def build_citation_label(
     )
 
 
+
+CONTEXT_METADATA_FIELDS = (
+    "page_context_status",
+    "chapter_context_status",
+    "unresolved_source_page_numbers",
+    "page_types",
+    "document_ids",
+    "document_titles",
+    "document_types",
+    "unit_numbers",
+    "chapter_ids",
+    "chapter_titles",
+    "source_filenames",
+    "document_id",
+    "document_title",
+    "document_type",
+    "unit_number",
+    "chapter_id",
+    "chapter_title",
+    "section_id",
+)
+
+
+def normalize_page_list(
+    value: Any,
+) -> list[int]:
+    if not isinstance(value, list):
+        return []
+
+    pages: list[int] = []
+    seen: set[int] = set()
+
+    for item in value:
+        if (
+            isinstance(item, bool)
+            or not isinstance(item, int)
+            or item < 1
+            or item in seen
+        ):
+            continue
+
+        seen.add(item)
+        pages.append(item)
+
+    return pages
+
+
+def normalize_text_values(
+    value: Any,
+) -> list[str]:
+    if isinstance(value, str):
+        values = [value]
+
+    elif isinstance(value, list):
+        values = value
+
+    else:
+        return []
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for item in values:
+        if not isinstance(item, str):
+            continue
+
+        cleaned = item.strip()
+
+        if not cleaned or cleaned in seen:
+            continue
+
+        seen.add(cleaned)
+        normalized.append(cleaned)
+
+    return normalized
+
+
+def copy_context_metadata(
+    content_unit: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        field_name: content_unit[
+            field_name
+        ]
+        for field_name
+        in CONTEXT_METADATA_FIELDS
+        if field_name in content_unit
+    }
+
+
+def build_context_citation_label(
+    book_id: str,
+    pages: list[int],
+    *,
+    chapter_titles: Any,
+    document_titles: Any,
+) -> str:
+    page_label = build_citation_label(
+        book_id,
+        pages,
+    )
+
+    labels = normalize_text_values(
+        chapter_titles
+    )
+
+    if not labels:
+        labels = normalize_text_values(
+            document_titles
+        )
+
+    if not labels:
+        return page_label
+
+    return (
+        " / ".join(labels)
+        + f" ({page_label})"
+    )
+
+
+def build_embedding_context_metadata(
+    content_unit: dict[str, Any],
+    pages: list[int],
+) -> dict[str, Any]:
+    metadata = copy_context_metadata(
+        content_unit
+    )
+
+    # Preserve the exact legacy schema when
+    # normalized records have no page-context
+    # metadata.
+    if not metadata:
+        return {}
+
+    metadata["context_citation_label"] = (
+        build_context_citation_label(
+            str(
+                content_unit.get(
+                    "book_id",
+                    "",
+                )
+            ),
+            pages,
+            chapter_titles=(
+                content_unit.get(
+                    "chapter_titles",
+                    [],
+                )
+            ),
+            document_titles=(
+                content_unit.get(
+                    "document_titles",
+                    [],
+                )
+            ),
+        )
+    )
+
+    return metadata
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -564,6 +725,15 @@ def main() -> int:
             embedding_text=embedding_text,
         )
 
+        normalized_source_pages = (
+            normalize_page_list(
+                content_unit.get(
+                    "source_page_numbers",
+                    [],
+                )
+            )
+        )
+
         if skip_reason:
             skip_counter[skip_reason] += 1
 
@@ -585,9 +755,12 @@ def main() -> int:
                     ),
                     "modality": modality,
                     "source_page_numbers": (
-                        content_unit.get(
-                            "source_page_numbers",
-                            [],
+                        normalized_source_pages
+                    ),
+                    **(
+                        build_embedding_context_metadata(
+                            content_unit,
+                            normalized_source_pages,
                         )
                     ),
                     "reason": skip_reason,
@@ -607,19 +780,7 @@ def main() -> int:
             overlap_chars=args.overlap_chars,
         )
 
-        pages = content_unit.get(
-            "source_page_numbers",
-            [],
-        )
-
-        if not isinstance(pages, list):
-            pages = []
-
-        pages = [
-            value
-            for value in pages
-            if isinstance(value, int)
-        ]
+        pages = normalized_source_pages
 
         for chunk_index, chunk in enumerate(
             chunks,
@@ -666,6 +827,12 @@ def main() -> int:
                 "locations": content_unit.get(
                     "locations",
                     [],
+                ),
+                **(
+                    build_embedding_context_metadata(
+                        content_unit,
+                        pages,
+                    )
                 ),
                 "citation_label": (
                     build_citation_label(

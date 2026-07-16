@@ -771,11 +771,56 @@ def invoke_with_retries(
     )
 
 
+
+CONTEXT_METADATA_FIELDS = (
+    "page_context_status",
+    "chapter_context_status",
+    "unresolved_source_page_numbers",
+    "page_types",
+    "document_ids",
+    "document_titles",
+    "document_types",
+    "unit_numbers",
+    "chapter_ids",
+    "chapter_titles",
+    "source_filenames",
+    "document_id",
+    "document_title",
+    "document_type",
+    "unit_number",
+    "chapter_id",
+    "chapter_title",
+    "section_id",
+    "context_citation_label",
+)
+
+
+def copy_context_metadata(
+    source_record: dict[str, Any],
+) -> dict[str, Any]:
+    """Copy optional retrieval context fields.
+
+    These fields are intentionally copied from
+    the current source record during final
+    consolidation. They are not stored as part
+    of the embedding-checkpoint identity.
+    """
+    return {
+        field_name: source_record[
+            field_name
+        ]
+        for field_name
+        in CONTEXT_METADATA_FIELDS
+        if field_name in source_record
+    }
+
+
 def build_consolidated_record(
     source_record: dict[str, Any],
     item: dict[str, Any],
 ) -> dict[str, Any]:
     return {
+        **copy_context_metadata(source_record),
         **source_record,
         "embedding_model_id": item[
             "model_id"

@@ -19,6 +19,8 @@ from botocore.exceptions import (
     ClientError,
 )
 
+from src.book_config import load_book_config
+
 
 REGION = "us-east-1"
 SERVICE = "aoss"
@@ -43,6 +45,86 @@ RETRYABLE_HTTP_STATUS = {
     503,
     504,
 }
+
+
+
+def resolve_runtime_identity(
+    config_path: Path | None,
+) -> dict[str, Any]:
+    if config_path is None:
+        return {
+            "mode": "legacy",
+            "config_path": None,
+            "region": REGION,
+            "collection_endpoint": (
+                COLLECTION_ENDPOINT
+            ),
+            "index_name": INDEX_NAME,
+            "book_id": BOOK_ID,
+            "book_version": BOOK_VERSION,
+            "vector_dimensions": 1024,
+        }
+
+    config = load_book_config(
+        config_path
+    )
+
+    return {
+        "mode": "book_config",
+        "config_path": str(
+            config_path
+        ),
+        "region": config.aws.region,
+        "collection_endpoint": (
+            config.opensearch
+            .collection_endpoint
+        ),
+        "index_name": (
+            config.opensearch.index_name
+        ),
+        "book_id": config.book.book_id,
+        "book_version": (
+            config.book.version
+        ),
+        "vector_dimensions": (
+            config.models.embedding
+            .dimensions
+        ),
+    }
+
+
+def configure_runtime(
+    config_path: Path | None,
+) -> dict[str, Any]:
+    global REGION
+    global COLLECTION_ENDPOINT
+    global INDEX_NAME
+    global BOOK_ID
+    global BOOK_VERSION
+
+    runtime = resolve_runtime_identity(
+        config_path
+    )
+
+    REGION = str(runtime["region"])
+
+    COLLECTION_ENDPOINT = str(
+        runtime["collection_endpoint"]
+    )
+
+    INDEX_NAME = str(
+        runtime["index_name"]
+    )
+
+    BOOK_ID = str(
+        runtime["book_id"]
+    )
+
+    BOOK_VERSION = str(
+        runtime["book_version"]
+    )
+
+    return runtime
 
 
 def utc_now() -> str:
@@ -258,24 +340,224 @@ def signed_request(
     )
 
 
+def validate_bulk_identity(
+    bulk_path: Path,
+    runtime: dict[str, Any],
+) -> int:
+    lines = bulk_path.read_text(
+        encoding="utf-8"
+    ).splitlines()
+
+    if not lines or len(lines) % 2 != 0:
+        raise RuntimeError(
+            "Bulk payload must contain "
+            "action/document line pairs."
+        )
+
+    expected_index = str(
+        runtime["index_name"]
+    )
+
+    expected_book_id = str(
+        runtime["book_id"]
+    )
+
+    expected_book_version = str(
+        runtime["book_version"]
+    )
+
+    document_count = 0
+
+    for position in range(
+        0,
+        len(lines),
+        2,
+    ):
+        pair_number = (
+            position // 2 + 1
+        )
+
+        try:
+            action = json.loads(
+                lines[position]
+            )
+
+            document = json.loads(
+                lines[position + 1]
+            )
+
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                "Invalid JSON in bulk payload "
+                f"pair {pair_number}: {exc}"
+            ) from exc
+
+        if not isinstance(action, dict):
+            raise RuntimeError(
+                f"Bulk action {pair_number} "
+                "is not an object."
+            )
+
+        operation = action.get("index")
+
+        if not isinstance(operation, dict):
+            raise RuntimeError(
+                f"Bulk action {pair_number} "
+                "does not contain an index "
+                "operation."
+            )
+
+        actual_index = operation.get(
+            "_index"
+        )
+
+        if actual_index != expected_index:
+            raise RuntimeError(
+                "Bulk target index mismatch: "
+                f"expected={expected_index!r}, "
+                f"actual={actual_index!r}"
+            )
+
+        if not isinstance(document, dict):
+            raise RuntimeError(
+                f"Bulk document {pair_number} "
+                "is not an object."
+            )
+
+        if (
+            document.get("book_id")
+            != expected_book_id
+        ):
+            raise RuntimeError(
+                "Bulk document book_id "
+                "mismatch: "
+                f"expected={expected_book_id!r}, "
+                f"actual="
+                f"{document.get('book_id')!r}"
+            )
+
+        if (
+            document.get("book_version")
+            != expected_book_version
+        ):
+            raise RuntimeError(
+                "Bulk document book_version "
+                "mismatch: "
+                f"expected="
+                f"{expected_book_version!r}, "
+                f"actual="
+                f"{document.get('book_version')!r}"
+            )
+
+        action_id = operation.get("_id")
+
+        record_id = document.get(
+            "record_id"
+        )
+
+        if action_id != record_id:
+            raise RuntimeError(
+                "Bulk action/document ID "
+                "mismatch: "
+                f"action={action_id!r}, "
+                f"document={record_id!r}"
+            )
+
+        document_count += 1
+
+    return document_count
+
+
 def validate_preparation(
     bulk_path: Path,
     preparation_report: dict[str, Any],
+    runtime: dict[str, Any],
 ) -> int:
     if preparation_report.get(
         "status"
     ) != "PREPARED":
         raise RuntimeError(
-            "Bulk preparation report is not PREPARED."
+            "Bulk preparation report "
+            "is not PREPARED."
         )
+
+    expected_index = str(
+        runtime["index_name"]
+    )
+
+    report_index = (
+        preparation_report.get(
+            "index_name"
+        )
+    )
+
+    if report_index != expected_index:
+        raise RuntimeError(
+            "Bulk preparation index "
+            "mismatch: "
+            f"expected={expected_index!r}, "
+            f"actual={report_index!r}"
+        )
+
+    report_configuration = (
+        preparation_report.get(
+            "configuration"
+        )
+    )
+
+    if runtime["mode"] == "book_config":
+        if not isinstance(
+            report_configuration,
+            dict,
+        ):
+            raise RuntimeError(
+                "Config-driven bulk report "
+                "contains no configuration "
+                "identity."
+            )
+
+        identity_checks = {
+            "book_id": runtime["book_id"],
+            "book_version": (
+                runtime["book_version"]
+            ),
+            "index_name": (
+                runtime["index_name"]
+            ),
+            "vector_dimensions": (
+                runtime[
+                    "vector_dimensions"
+                ]
+            ),
+        }
+
+        for field, expected in (
+            identity_checks.items()
+        ):
+            actual = (
+                report_configuration.get(
+                    field
+                )
+            )
+
+            if actual != expected:
+                raise RuntimeError(
+                    "Bulk preparation "
+                    "configuration mismatch "
+                    f"for {field}: "
+                    f"expected={expected!r}, "
+                    f"actual={actual!r}"
+                )
 
     validation = preparation_report.get(
         "validation",
         {},
     )
 
-    expected_document_count = validation.get(
-        "document_count"
+    expected_document_count = (
+        validation.get(
+            "document_count"
+        )
     )
 
     if (
@@ -286,12 +568,15 @@ def validate_preparation(
         or expected_document_count < 1
     ):
         raise RuntimeError(
-            "Prepared document count is invalid: "
+            "Prepared document count "
+            "is invalid: "
             f"{expected_document_count}"
         )
 
-    unique_document_ids = validation.get(
-        "unique_document_ids"
+    unique_document_ids = (
+        validation.get(
+            "unique_document_ids"
+        )
     )
 
     if (
@@ -299,16 +584,31 @@ def validate_preparation(
         != expected_document_count
     ):
         raise RuntimeError(
-            "Prepared document IDs are not unique: "
-            f"documents={expected_document_count}, "
-            f"unique_ids={unique_document_ids}"
+            "Prepared document IDs "
+            "are not unique: "
+            f"documents="
+            f"{expected_document_count}, "
+            f"unique_ids="
+            f"{unique_document_ids}"
         )
 
-    if validation.get(
+    vector_dimensions = int(
+        runtime["vector_dimensions"]
+    )
+
+    actual_dimensions = validation.get(
         "vector_dimensions"
-    ) != 1024:
+    )
+
+    if (
+        actual_dimensions
+        != vector_dimensions
+    ):
         raise RuntimeError(
-            "Prepared vectors are not 1024-dimensional."
+            "Prepared vector dimensions "
+            "do not match configuration: "
+            f"expected={vector_dimensions}, "
+            f"actual={actual_dimensions}"
         )
 
     output = preparation_report.get(
@@ -326,7 +626,8 @@ def validate_preparation(
 
     if actual_sha256 != expected_sha256:
         raise RuntimeError(
-            "Bulk payload checksum mismatch.\n"
+            "Bulk payload checksum "
+            "mismatch.\n"
             f"Expected: {expected_sha256}\n"
             f"Actual:   {actual_sha256}"
         )
@@ -335,9 +636,29 @@ def validate_preparation(
         b"\n"
     ):
         raise RuntimeError(
-            "Bulk payload does not end with newline."
+            "Bulk payload does not "
+            "end with newline."
         )
 
+    actual_document_count = (
+        validate_bulk_identity(
+            bulk_path=bulk_path,
+            runtime=runtime,
+        )
+    )
+
+    if (
+        actual_document_count
+        != expected_document_count
+    ):
+        raise RuntimeError(
+            "Bulk payload document count "
+            "does not match report: "
+            f"payload="
+            f"{actual_document_count}, "
+            f"report="
+            f"{expected_document_count}"
+        )
 
     return expected_document_count
 
@@ -586,11 +907,27 @@ def parse_args() -> argparse.Namespace:
         required=True,
     )
 
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "Endpoint, index, book identity "
+            "and vector dimensions are derived "
+            "from BookConfig."
+        ),
+    )
+
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+
+    runtime = configure_runtime(
+        args.config
+    )
 
     if not args.bulk_path.exists():
         raise FileNotFoundError(
@@ -608,6 +945,7 @@ def main() -> int:
             preparation_report=(
                 preparation_report
             ),
+            runtime=runtime,
         )
     )
 
@@ -639,6 +977,9 @@ def main() -> int:
     print("============================================")
     print("OPENSEARCH BULK UPLOAD")
     print("============================================")
+    print(
+        f"Mode:           {runtime['mode']}"
+    )
     print(
         f"Endpoint:       {COLLECTION_ENDPOINT}"
     )
@@ -854,6 +1195,7 @@ def main() -> int:
         "schema_version": "1.0",
         "generated_at": utc_now(),
         "status": "COMPLETED",
+        "configuration": runtime,
         "region": REGION,
         "service": SERVICE,
         "collection_endpoint": (

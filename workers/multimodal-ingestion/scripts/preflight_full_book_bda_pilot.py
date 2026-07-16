@@ -13,6 +13,8 @@ import boto3
 import fitz
 from botocore.exceptions import BotoCoreError, ClientError
 
+from src.book_config import load_book_config
+
 
 REGION = "us-east-1"
 ACCOUNT_ID = "334590195171"
@@ -46,6 +48,298 @@ DEFAULT_MANIFEST_PATH = (
     / "full-book"
     / "full-book-batch-manifest.json"
 )
+
+
+
+LEGACY_REGION = REGION
+LEGACY_BUCKET = BUCKET
+LEGACY_BOOK_ID = BOOK_ID
+LEGACY_BOOK_VERSION = BOOK_VERSION
+LEGACY_GRADE = GRADE
+LEGACY_PROJECT_STAGE = PROJECT_STAGE
+LEGACY_PROFILE_ARN = (
+    DATA_AUTOMATION_PROFILE_ARN
+)
+LEGACY_LOCAL_ROOT = LOCAL_ROOT
+LEGACY_PROJECT_METADATA_PATH = (
+    PROJECT_METADATA_PATH
+)
+LEGACY_MANIFEST_PATH = (
+    DEFAULT_MANIFEST_PATH
+)
+
+CONFIG_MODE = "legacy"
+BDA_PROJECT_ARN: str | None = None
+DERIVED_PREFIX = (
+    f"derived-artifacts/{GRADE}/"
+    f"{BOOK_ID}/{BOOK_VERSION}"
+)
+
+
+def resolve_preflight_runtime(
+    config_path: Path | None,
+) -> dict[str, Any]:
+    if config_path is None:
+        return {
+            "mode": "legacy",
+            "config_path": None,
+            "region": LEGACY_REGION,
+            "bucket": LEGACY_BUCKET,
+            "book_id": LEGACY_BOOK_ID,
+            "book_version": (
+                LEGACY_BOOK_VERSION
+            ),
+            "grade": LEGACY_GRADE,
+            "project_arn": None,
+            "profile_arn": (
+                LEGACY_PROFILE_ARN
+            ),
+            "project_stage": (
+                LEGACY_PROJECT_STAGE
+            ),
+            "local_root": str(
+                LEGACY_LOCAL_ROOT
+            ),
+            "project_metadata_path": str(
+                LEGACY_PROJECT_METADATA_PATH
+            ),
+            "manifest_path": str(
+                LEGACY_MANIFEST_PATH
+            ),
+            "derived_prefix": (
+                "derived-artifacts/"
+                f"{LEGACY_GRADE}/"
+                f"{LEGACY_BOOK_ID}/"
+                f"{LEGACY_BOOK_VERSION}"
+            ),
+            "bda_input_prefix": (
+                "bda-input/"
+                f"{LEGACY_GRADE}/"
+                f"{LEGACY_BOOK_ID}/"
+                f"{LEGACY_BOOK_VERSION}"
+            ),
+        }
+
+    config = load_book_config(
+        config_path
+    )
+
+    local_root = Path(
+        config.storage.local_root
+    )
+
+    grade = (
+        f"grade-{config.book.grade}"
+    )
+
+    return {
+        "mode": "book_config",
+        "config_path": str(config_path),
+        "region": config.aws.region,
+        "bucket": config.aws.bucket,
+        "book_id": config.book.book_id,
+        "book_version": (
+            config.book.version
+        ),
+        "grade": grade,
+        "project_arn": (
+            config.bda.project_arn
+        ),
+        "profile_arn": (
+            config.bda.profile_arn
+        ),
+        "project_stage": (
+            config.bda.stage
+        ),
+        "local_root": str(local_root),
+        "project_metadata_path": str(
+            local_root / "bda-project.json"
+        ),
+        "manifest_path": str(
+            local_root
+            / "full-book"
+            / "full-book-batch-manifest.json"
+        ),
+        "derived_prefix": (
+            config.storage.derived_prefix
+        ),
+        "bda_input_prefix": (
+            config.storage.bda_input_prefix
+        ),
+    }
+
+
+def configure_runtime(
+    config_path: Path | None,
+) -> dict[str, Any]:
+    global REGION
+    global BUCKET
+    global BOOK_ID
+    global BOOK_VERSION
+    global GRADE
+    global PROJECT_STAGE
+    global DATA_AUTOMATION_PROFILE_ARN
+    global LOCAL_ROOT
+    global PROJECT_METADATA_PATH
+    global DEFAULT_MANIFEST_PATH
+    global BDA_PROJECT_ARN
+    global DERIVED_PREFIX
+    global CONFIG_MODE
+
+    runtime = resolve_preflight_runtime(
+        config_path
+    )
+
+    CONFIG_MODE = str(runtime["mode"])
+    REGION = str(runtime["region"])
+    BUCKET = str(runtime["bucket"])
+    BOOK_ID = str(runtime["book_id"])
+    BOOK_VERSION = str(
+        runtime["book_version"]
+    )
+    GRADE = str(runtime["grade"])
+    PROJECT_STAGE = str(
+        runtime["project_stage"]
+    )
+    DATA_AUTOMATION_PROFILE_ARN = str(
+        runtime["profile_arn"]
+    )
+    LOCAL_ROOT = Path(
+        runtime["local_root"]
+    )
+    PROJECT_METADATA_PATH = Path(
+        runtime["project_metadata_path"]
+    )
+    DEFAULT_MANIFEST_PATH = Path(
+        runtime["manifest_path"]
+    )
+
+    project_arn = runtime.get(
+        "project_arn"
+    )
+
+    BDA_PROJECT_ARN = (
+        str(project_arn)
+        if project_arn
+        else None
+    )
+
+    DERIVED_PREFIX = str(
+        runtime["derived_prefix"]
+    ).rstrip("/")
+
+    return runtime
+
+
+def validate_manifest_identity(
+    manifest: dict[str, Any],
+    runtime: dict[str, Any],
+) -> None:
+    if runtime["mode"] == "legacy":
+        return
+
+    expected_book_id = str(
+        runtime["book_id"]
+    )
+
+    expected_book_version = str(
+        runtime["book_version"]
+    )
+
+    if (
+        manifest.get("book_id")
+        != expected_book_id
+    ):
+        raise RuntimeError(
+            "Manifest book_id mismatch: "
+            f"expected={expected_book_id!r}, "
+            f"actual="
+            f"{manifest.get('book_id')!r}"
+        )
+
+    if (
+        manifest.get("book_version")
+        != expected_book_version
+    ):
+        raise RuntimeError(
+            "Manifest book_version mismatch: "
+            f"expected="
+            f"{expected_book_version!r}, "
+            f"actual="
+            f"{manifest.get('book_version')!r}"
+        )
+
+    input_prefix = str(
+        runtime["bda_input_prefix"]
+    ).rstrip("/")
+
+    expected_manifest_key = (
+        f"{input_prefix}/full-book/"
+        "full-book-batch-manifest.json"
+    )
+
+    upload_data = manifest.get(
+        "s3_upload",
+        {},
+    )
+
+    actual_manifest_key = (
+        upload_data.get(
+            "manifest_s3_key"
+        )
+        if isinstance(
+            upload_data,
+            dict,
+        )
+        else None
+    )
+
+    if (
+        actual_manifest_key
+        != expected_manifest_key
+    ):
+        raise RuntimeError(
+            "Manifest S3 key mismatch: "
+            f"expected="
+            f"{expected_manifest_key!r}, "
+            f"actual="
+            f"{actual_manifest_key!r}"
+        )
+
+    batches = manifest.get(
+        "batches",
+        [],
+    )
+
+    if not isinstance(batches, list):
+        raise RuntimeError(
+            "Manifest batches field is invalid."
+        )
+
+    expected_batch_prefix = (
+        f"{input_prefix}/full-book/"
+        "batches/"
+    )
+
+    for batch in batches:
+        if not isinstance(batch, dict):
+            raise RuntimeError(
+                "Manifest contains an invalid "
+                "batch entry."
+            )
+
+        key = str(
+            batch.get("s3_key", "")
+        )
+
+        if not key.startswith(
+            expected_batch_prefix
+        ):
+            raise RuntimeError(
+                "Batch S3 key is outside the "
+                "configured chapter-test prefix: "
+                f"{key}"
+            )
 
 
 def utc_now() -> str:
@@ -125,23 +419,55 @@ def load_project_arn() -> tuple[
     str,
     dict[str, Any],
 ]:
-    metadata = load_json_object(
-        PROJECT_METADATA_PATH
-    )
-
-    project = metadata.get(
-        "project"
-    )
-
-    if not isinstance(project, dict):
-        raise RuntimeError(
-            "BDA project metadata contains "
-            "no project object."
+    if BDA_PROJECT_ARN is not None:
+        client = boto3.client(
+            "bedrock-data-automation",
+            region_name=REGION,
         )
 
-    project_arn = project.get(
-        "projectArn"
-    )
+        response = (
+            client.get_data_automation_project(
+                projectArn=BDA_PROJECT_ARN,
+                projectStage=PROJECT_STAGE,
+            )
+        )
+
+        nested_project = response.get(
+            "project"
+        )
+
+        project = (
+            nested_project
+            if isinstance(
+                nested_project,
+                dict,
+            )
+            else response
+        )
+
+        project_arn = (
+            project.get("projectArn")
+            or BDA_PROJECT_ARN
+        )
+
+    else:
+        metadata = load_json_object(
+            PROJECT_METADATA_PATH
+        )
+
+        project = metadata.get(
+            "project"
+        )
+
+        if not isinstance(project, dict):
+            raise RuntimeError(
+                "BDA project metadata contains "
+                "no project object."
+            )
+
+        project_arn = project.get(
+            "projectArn"
+        )
 
     if not isinstance(
         project_arn,
@@ -149,6 +475,16 @@ def load_project_arn() -> tuple[
     ) or not project_arn:
         raise RuntimeError(
             "BDA project ARN is missing."
+        )
+
+    if project_arn != (
+        BDA_PROJECT_ARN
+        if BDA_PROJECT_ARN
+        else project_arn
+    ):
+        raise RuntimeError(
+            "Configured and returned BDA "
+            "project ARNs do not match."
         )
 
     if project.get("status") != "COMPLETED":
@@ -480,8 +816,7 @@ def build_output_location(
     batch_id: str,
 ) -> tuple[str, str]:
     output_prefix = (
-        f"derived-artifacts/{GRADE}/"
-        f"{BOOK_ID}/{BOOK_VERSION}/"
+        f"{DERIVED_PREFIX}/"
         "bda-output/full-book/batches/"
         f"{batch_id}"
     )
@@ -626,14 +961,34 @@ def parse_args() -> argparse.Namespace:
         required=True,
     )
 
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "Book identity, AWS resources and "
+            "output prefixes are derived from it."
+        ),
+    )
+
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
 
+    runtime = configure_runtime(
+        args.config
+    )
+
     manifest = load_json_object(
         args.manifest
+    )
+
+    validate_manifest_identity(
+        manifest,
+        runtime,
     )
 
     batch = select_batch(
@@ -738,6 +1093,7 @@ def main() -> int:
         "schema_version": "1.0",
         "generated_at": utc_now(),
         "status": "PREFLIGHT_PASSED",
+        "configuration": runtime,
         "region": REGION,
         "bucket": BUCKET,
         "book_id": BOOK_ID,
@@ -820,6 +1176,12 @@ def main() -> int:
     print("=" * 52)
     print("FULL BOOK BDA PILOT PREFLIGHT")
     print("=" * 52)
+    print(
+        f"Config mode:  {runtime['mode']}"
+    )
+    print(
+        f"Book version:{runtime['book_version']}"
+    )
     print(f"Batch:        {args.batch_id}")
     print(
         "Source pages: "

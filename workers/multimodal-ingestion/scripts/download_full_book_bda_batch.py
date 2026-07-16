@@ -471,6 +471,165 @@ def download_objects(
     )
 
 
+
+def load_batch_context_metadata(
+    manifest: dict[str, Any],
+    batch: dict[str, Any],
+) -> dict[str, Any]:
+    metadata_path_value = batch.get(
+        "normalizer_metadata_path"
+    )
+
+    # Preserve legacy manifests that do not have
+    # chapter/page context sidecars.
+    if not metadata_path_value:
+        return {}
+
+    metadata_path = Path(
+        str(metadata_path_value)
+    )
+
+    sidecar = load_json_object(
+        metadata_path
+    )
+
+    actual_sha256 = sha256_file(
+        metadata_path
+    )
+
+    expected_sha256 = batch.get(
+        "normalizer_metadata_sha256"
+    )
+
+    if (
+        expected_sha256
+        and actual_sha256
+        != str(expected_sha256)
+    ):
+        raise RuntimeError(
+            "Batch context sidecar SHA256 "
+            "does not match the manifest."
+        )
+
+    expected_identity = {
+        "book_id": manifest["book_id"],
+        "book_version": (
+            manifest["book_version"]
+        ),
+        "batch_id": batch["batch_id"],
+        "batch_number": (
+            batch["batch_number"]
+        ),
+        "source_start_page": (
+            batch["source_page_start"]
+        ),
+        "source_end_page": (
+            batch["source_page_end"]
+        ),
+        "source_page_offset": (
+            batch["source_page_offset"]
+        ),
+        "batch_page_count": (
+            batch["page_count"]
+        ),
+    }
+
+    for field, expected in (
+        expected_identity.items()
+    ):
+        actual = sidecar.get(field)
+
+        if actual != expected:
+            raise RuntimeError(
+                "Batch context sidecar identity "
+                f"mismatch for {field}: "
+                f"expected={expected!r}, "
+                f"actual={actual!r}"
+            )
+
+    page_contexts = sidecar.get(
+        "page_contexts"
+    )
+
+    if not isinstance(
+        page_contexts,
+        list,
+    ):
+        raise RuntimeError(
+            "Batch context sidecar contains "
+            "no page_contexts list."
+        )
+
+    expected_count = int(
+        batch["page_count"]
+    )
+
+    if len(page_contexts) != expected_count:
+        raise RuntimeError(
+            "Batch page-context count mismatch: "
+            f"expected={expected_count}, "
+            f"actual={len(page_contexts)}"
+        )
+
+    batch_pages: list[int] = []
+
+    for context in page_contexts:
+        if not isinstance(context, dict):
+            raise RuntimeError(
+                "Invalid page-context record."
+            )
+
+        batch_page = context.get(
+            "batch_page"
+        )
+
+        if not isinstance(batch_page, int):
+            raise RuntimeError(
+                "Page-context record has no "
+                "integer batch_page."
+            )
+
+        batch_pages.append(batch_page)
+
+    expected_batch_pages = list(
+        range(1, expected_count + 1)
+    )
+
+    if sorted(batch_pages) != (
+        expected_batch_pages
+    ):
+        raise RuntimeError(
+            "Page-context batch-page coverage "
+            "is not complete and contiguous."
+        )
+
+    context_fields = (
+        "metadata_type",
+        "source_pdf_uri",
+        "chapter_page_map_path",
+        "document_ids",
+        "chapter_ids",
+        "page_contexts",
+        "chapter_spans",
+    )
+
+    result = {
+        field: sidecar[field]
+        for field in context_fields
+        if field in sidecar
+    }
+
+    result[
+        "page_context_metadata_path"
+    ] = str(metadata_path)
+
+    result[
+        "page_context_metadata_sha256"
+    ] = actual_sha256
+
+    return result
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -784,6 +943,13 @@ def main() -> int:
             suffix or "<none>"
         ] += 1
 
+    chapter_context_metadata = (
+        load_batch_context_metadata(
+            manifest=manifest,
+            batch=batch,
+        )
+    )
+
     normalizer_metadata = {
         "schema_version": "1.0",
         "book_id": manifest[
@@ -836,6 +1002,10 @@ def main() -> int:
         ),
         "created_at": utc_now(),
     }
+
+    normalizer_metadata.update(
+        chapter_context_metadata
+    )
 
     metadata_adapter_path = (
         local_invocation_root
@@ -892,6 +1062,19 @@ def main() -> int:
         ),
         "normalizer_metadata_path": str(
             metadata_adapter_path
+        ),
+        "page_context_metadata_available": (
+            bool(
+                normalizer_metadata.get(
+                    "page_contexts"
+                )
+            )
+        ),
+        "page_context_record_count": len(
+            normalizer_metadata.get(
+                "page_contexts",
+                [],
+            )
         ),
         "asset_directory": str(
             asset_directory
