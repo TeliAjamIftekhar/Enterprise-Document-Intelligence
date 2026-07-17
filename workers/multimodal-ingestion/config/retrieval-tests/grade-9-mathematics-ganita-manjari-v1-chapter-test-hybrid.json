@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-9-mathematics-ganita-manjari",
+  "book_version": "v1-chapter-test",
+  "index_name": "grade-9-mathematics-ganita-manjari-v1-chapter-test",
+  "source_report": "data/multimodal-output/grade-9-mathematics-ganita-manjari/v1-chapter-test/opensearch-serverless/chapter-routing-diagnostic-report.json",
+  "evaluation_type": "hybrid_retrieval",
+  "baseline_generation": "saved_hybrid_rank_1",
+  "tests": [
+    {
+      "test_id": "coordinates",
+      "query": "How do coordinates help us locate a point on a plane?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:c795c4fe-b417-4d49-b82c-f7c0c136afcd:chunk-0001",
+      "expected_page": 34,
+      "expected_modality": "list"
+    },
+    {
+      "test_id": "linear-polynomials",
+      "query": "What is a linear polynomial and how can it be represented?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:54cb31ac-2772-46a2-9e55-4bd514833a08:chunk-0001",
+      "expected_page": 39,
+      "expected_modality": "paragraph"
+    },
+    {
+      "test_id": "world-of-numbers",
+      "query": "What are rational and irrational numbers?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:9019f1ea-f480-4ba5-a100-d64521a2ce93:chunk-0001",
+      "expected_page": 87,
+      "expected_modality": "list"
+    },
+    {
+      "test_id": "algebraic-identities",
+      "query": "How can algebraic identities be used to expand expressions?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:1a80bc6c-899c-4e34-b4e7-a182b12076a5:chunk-0001",
+      "expected_page": 88,
+      "expected_modality": "paragraph"
+    },
+    {
+      "test_id": "geometry-up-down-round",
+      "query": "What is discussed in the chapter I'm Up and Down, and Round and Round?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:9ee275cc-c114-4799-b6f8-1216067dada9:chunk-0001",
+      "expected_page": 112,
+      "expected_modality": "heading"
+    },
+    {
+      "test_id": "perimeter-area",
+      "query": "How are perimeter and area used to measure space?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:4fff4702-18b3-4d2c-8239-3ff9d31d95e6:chunk-0001",
+      "expected_page": 138,
+      "expected_modality": "heading"
+    },
+    {
+      "test_id": "probability",
+      "query": "What is probability and how do we describe the chance of an event?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:3531c25f-9d9b-4aeb-b2ca-3e021687a596:chunk-0001",
+      "expected_page": 176,
+      "expected_modality": "paragraph"
+    },
+    {
+      "test_id": "sequences-progressions",
+      "query": "How can we identify the next term in a sequence or progression?",
+      "expected_record_id": "grade-9-mathematics-ganita-manjari:v1-chapter-test:bda:b14979f7-9946-4404-9b38-dbeaacb10bd5:chunk-0001",
+      "expected_page": 196,
+      "expected_modality": "paragraph"
+    }
+  ]
+}
