@@ -152,6 +152,128 @@ def generation_exclusion_reasons(
     return reasons
 
 
+def select_chapter_consistent_results(
+    candidates: list[dict[str, Any]],
+    top_k: int,
+) -> list[dict[str, Any]]:
+    """Conservatively remove cross-chapter noise.
+
+    Filtering is applied only when the top-ranked
+    chapter has a strict majority among the initial
+    top-k candidates and at least two supporting
+    candidates. If chapter metadata is unavailable
+    or the result set is mixed, normal retrieval
+    behaviour is preserved.
+    """
+
+    baseline = candidates[:top_k]
+
+    if not baseline:
+        return []
+
+    top_chapter_id = baseline[0].get(
+        "chapter_id"
+    )
+
+    top_chapter_title = baseline[0].get(
+        "chapter_title"
+    )
+
+    top_chapter_status = baseline[0].get(
+        "chapter_context_status"
+    )
+
+    comparable = [
+        candidate
+        for candidate in baseline
+        if (
+            candidate.get(
+                "chapter_context_status"
+            )
+            == "single"
+            and isinstance(
+                candidate.get("chapter_id"),
+                str,
+            )
+            and candidate.get("chapter_id")
+        )
+    ]
+
+    should_filter = False
+
+    if (
+        top_chapter_status == "single"
+        and isinstance(
+            top_chapter_id,
+            str,
+        )
+        and top_chapter_id
+    ):
+        top_chapter_count = sum(
+            1
+            for candidate in comparable
+            if candidate.get("chapter_id")
+            == top_chapter_id
+        )
+
+        should_filter = (
+            top_chapter_count >= 2
+            and top_chapter_count * 2
+            > len(comparable)
+        )
+
+    selected = baseline
+
+    if should_filter:
+        same_chapter = [
+            candidate
+            for candidate in candidates
+            if (
+                candidate.get(
+                    "chapter_context_status"
+                )
+                == "single"
+                and candidate.get(
+                    "chapter_id"
+                )
+                == top_chapter_id
+            )
+        ][:top_k]
+
+        if len(same_chapter) >= 2:
+            selected = same_chapter
+        else:
+            should_filter = False
+
+    finalized: list[
+        dict[str, Any]
+    ] = []
+
+    for context_rank, candidate in enumerate(
+        selected,
+        start=1,
+    ):
+        finalized.append({
+            **candidate,
+            "rank": context_rank,
+            "chapter_filter_applied": (
+                should_filter
+            ),
+            "selected_chapter_id": (
+                top_chapter_id
+                if should_filter
+                else None
+            ),
+            "selected_chapter_title": (
+                top_chapter_title
+                if should_filter
+                else None
+            ),
+        })
+
+    return finalized
+
+
 def retrieve_context(
     query: str,
     top_k: int,
@@ -262,11 +384,8 @@ def retrieve_context(
             )
             continue
 
-        context_rank = len(results) + 1
-
         results.append(
             {
-                "rank": context_rank,
                 "hybrid_rank": hybrid_rank,
                 "record_id": result[
                     "record_id"
@@ -280,10 +399,40 @@ def retrieve_context(
                 "bm25_rank": result[
                     "bm25_rank"
                 ],
+                "document_type": source.get(
+                    "document_type"
+                ),
                 "modality": source_modality,
                 "source_page_numbers": pages,
-                "citation_label": source.get(
-                    "citation_label"
+                "page_context_status": source.get(
+                    "page_context_status"
+                ),
+                "chapter_id": source.get(
+                    "chapter_id"
+                ),
+                "chapter_title": source.get(
+                    "chapter_title"
+                ),
+                "chapter_context_status": (
+                    source.get(
+                        "chapter_context_status"
+                    )
+                ),
+                "chapter_ids": source.get(
+                    "chapter_ids",
+                    [],
+                ),
+                "chapter_titles": source.get(
+                    "chapter_titles",
+                    [],
+                ),
+                "citation_label": (
+                    source.get(
+                        "context_citation_label"
+                    )
+                    or source.get(
+                        "citation_label"
+                    )
                 ),
                 "embedding_text": text,
                 "asset_s3_uris": source.get(
@@ -294,8 +443,10 @@ def retrieve_context(
             }
         )
 
-        if len(results) >= top_k:
-            break
+    results = select_chapter_consistent_results(
+        candidates=results,
+        top_k=top_k,
+    )
 
     if not results:
         raise RuntimeError(
@@ -329,10 +480,25 @@ def build_context(
             for page in pages
         )
 
+        chapter_title = result.get(
+            "chapter_title"
+        )
+
+        chapter_line = (
+            f"Chapter: {chapter_title}\n"
+            if isinstance(
+                chapter_title,
+                str,
+            )
+            and chapter_title
+            else ""
+        )
+
         block = (
             f"SOURCE {result['rank']}\n"
             f"Record ID: {result['record_id']}\n"
             f"Page: {page_label}\n"
+            f"{chapter_line}"
             f"Modality: {result['modality']}\n"
             f"Citation label: "
             f"{result['citation_label']}\n"
