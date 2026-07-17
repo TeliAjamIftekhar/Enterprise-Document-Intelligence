@@ -100,10 +100,64 @@ def main() -> int:
             "Manifest batches field is not a list."
         )
 
-    if len(batches) != 15:
+    validation = manifest.get(
+        "validation"
+    )
+
+    if not isinstance(validation, dict):
         raise RuntimeError(
-            f"Expected 15 batches, found "
-            f"{len(batches)}."
+            "Manifest validation field is not "
+            "an object."
+        )
+
+    expected_pages = validation.get(
+        "expected_pages"
+    )
+
+    expected_batch_count = validation.get(
+        "expected_batch_count"
+    )
+
+    actual_batch_count = validation.get(
+        "actual_batch_count"
+    )
+
+    for field_name, value in (
+        ("expected_pages", expected_pages),
+        (
+            "expected_batch_count",
+            expected_batch_count,
+        ),
+        (
+            "actual_batch_count",
+            actual_batch_count,
+        ),
+    ):
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or value < 1
+        ):
+            raise RuntimeError(
+                "Manifest validation field must "
+                f"be a positive integer: "
+                f"{field_name}={value!r}"
+            )
+
+    if actual_batch_count != len(batches):
+        raise RuntimeError(
+            "Manifest actual batch count differs "
+            "from the batches list: "
+            f"validation={actual_batch_count}, "
+            f"actual={len(batches)}"
+        )
+
+    if len(batches) != expected_batch_count:
+        raise RuntimeError(
+            "Manifest batch count differs from "
+            "the expected batch count: "
+            f"expected={expected_batch_count}, "
+            f"actual={len(batches)}"
         )
 
     expected_start_page = 1
@@ -219,9 +273,12 @@ def main() -> int:
             }
         )
 
-    if expected_start_page != 301:
+    if expected_start_page != expected_pages + 1:
         raise RuntimeError(
-            "Batch manifest does not end at page 300."
+            "Batch manifest does not end at the "
+            "expected final page: "
+            f"expected={expected_pages}, "
+            f"actual={expected_start_page - 1}"
         )
 
     completed = [
@@ -258,27 +315,9 @@ def main() -> int:
             )
         )
 
-    expected_completed_ids = {
-        "batch-0001",
-    }
-
     completed_ids = {
         str(batch["batch_id"])
         for batch in completed
-    }
-
-    if completed_ids != expected_completed_ids:
-        raise RuntimeError(
-            "Unexpected completed batch set: "
-            f"{sorted(completed_ids)}"
-        )
-
-    expected_remaining_ids = {
-        f"batch-{number:04d}"
-        for number in range(
-            2,
-            16,
-        )
     }
 
     remaining_ids = {
@@ -286,10 +325,53 @@ def main() -> int:
         for batch in remaining
     }
 
-    if remaining_ids != expected_remaining_ids:
+    blocked_ids = {
+        str(batch["batch_id"])
+        for batch in blocked
+    }
+
+    all_batch_ids = {
+        str(batch["batch_id"])
+        for batch in plan_batches
+    }
+
+    expected_batch_ids = {
+        f"batch-{number:04d}"
+        for number in range(
+            1,
+            expected_batch_count + 1,
+        )
+    }
+
+    if all_batch_ids != expected_batch_ids:
         raise RuntimeError(
-            "Unexpected remaining batch set: "
-            f"{sorted(remaining_ids)}"
+            "Planned batch IDs differ from the "
+            "manifest-driven expected sequence: "
+            f"expected={sorted(expected_batch_ids)}, "
+            f"actual={sorted(all_batch_ids)}"
+        )
+
+    if (
+        completed_ids & remaining_ids
+        or completed_ids & blocked_ids
+        or remaining_ids & blocked_ids
+    ):
+        raise RuntimeError(
+            "Completed, remaining and blocked "
+            "batch sets overlap."
+        )
+
+    classified_ids = (
+        completed_ids
+        | remaining_ids
+        | blocked_ids
+    )
+
+    if classified_ids != expected_batch_ids:
+        raise RuntimeError(
+            "Batch classification is incomplete: "
+            f"expected={sorted(expected_batch_ids)}, "
+            f"actual={sorted(classified_ids)}"
         )
 
     report = {

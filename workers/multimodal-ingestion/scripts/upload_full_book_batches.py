@@ -118,6 +118,47 @@ def validate_manifest(
         {},
     )
 
+    expected_pages = validation.get(
+        "expected_pages"
+    )
+
+    expected_batch_count = validation.get(
+        "expected_batch_count"
+    )
+
+    actual_batch_count = validation.get(
+        "actual_batch_count"
+    )
+
+    for field_name, value in (
+        ("expected_pages", expected_pages),
+        (
+            "expected_batch_count",
+            expected_batch_count,
+        ),
+        (
+            "actual_batch_count",
+            actual_batch_count,
+        ),
+    ):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 1
+        ):
+            raise RuntimeError(
+                "Manifest validation has invalid "
+                f"{field_name}: {value}"
+            )
+
+    if expected_batch_count != actual_batch_count:
+        raise RuntimeError(
+            "Manifest expected and actual batch "
+            "counts differ: "
+            f"expected={expected_batch_count}, "
+            f"actual={actual_batch_count}"
+        )
+
     required_checks = {
         "contiguous": (
             validation.get("contiguous")
@@ -135,17 +176,14 @@ def validate_manifest(
             )
             == []
         ),
-        "expected_pages_300": (
-            validation.get(
-                "expected_pages"
-            )
-            == 300
+        "expected_pages_positive": (
+            expected_pages > 0
         ),
-        "actual_batch_count_15": (
-            validation.get(
-                "actual_batch_count"
-            )
-            == 15
+        "expected_batch_count_positive": (
+            expected_batch_count > 0
+        ),
+        "actual_batch_count_positive": (
+            actual_batch_count > 0
         ),
         "all_text_verified": (
             validation.get(
@@ -195,10 +233,20 @@ def validate_manifest(
             "Manifest has no batches list."
         )
 
-    if len(batches) != 15:
+    if len(batches) != actual_batch_count:
         raise RuntimeError(
-            "Expected 15 batches, found "
-            f"{len(batches)}."
+            "Manifest actual batch count differs "
+            "from the batches list: "
+            f"validation={actual_batch_count}, "
+            f"actual={len(batches)}"
+        )
+
+    if len(batches) != expected_batch_count:
+        raise RuntimeError(
+            "Manifest batch count differs from "
+            "the expected batch count: "
+            f"expected={expected_batch_count}, "
+            f"actual={len(batches)}"
         )
 
     sorted_batches = sorted(
@@ -367,9 +415,10 @@ def validate_manifest(
             }
         )
 
-    if expected_start_page != 301:
+    if expected_start_page != expected_pages + 1:
         raise RuntimeError(
-            "Final source page is not 300."
+            "Final source page is not "
+            f"{expected_pages}."
         )
 
     return local_results

@@ -1,0 +1,204 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-9-mathematics-ganita-manjari",
+  "book_version": "v1-chapter-test",
+  "title": "Ganita Manjari Mathematics Textbook for Grade 9 Part I",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-IX/Mathematics-Ganita Manjari(English).zip",
+    "archive_root": "iemh1dd",
+    "supplementary_assets": [
+      "iemk1cc.jpg"
+    ]
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 220,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 220,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "iemh1ps.pdf",
+      "source_page_count": 20,
+      "canonical_start_page": 1,
+      "canonical_end_page": 20,
+      "title": "Ganita Manjari Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "iemh101.pdf",
+      "source_page_count": 15,
+      "canonical_start_page": 21,
+      "canonical_end_page": 35,
+      "title": "Chapter 1: Orienting Yourself — The Use of Coordinates",
+      "chapters": [
+        {
+          "chapter_id": "orienting-yourself-the-use-of-coordinates",
+          "chapter_title": "Orienting Yourself: The Use of Coordinates",
+          "source_start_page": 1,
+          "source_end_page": 15,
+          "canonical_start_page": 21,
+          "canonical_end_page": 35
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "iemh102.pdf",
+      "source_page_count": 25,
+      "canonical_start_page": 36,
+      "canonical_end_page": 60,
+      "title": "Chapter 2: Introduction to Linear Polynomials",
+      "chapters": [
+        {
+          "chapter_id": "introduction-to-linear-polynomials",
+          "chapter_title": "Introduction to Linear Polynomials",
+          "source_start_page": 1,
+          "source_end_page": 25,
+          "canonical_start_page": 36,
+          "canonical_end_page": 60
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "iemh103.pdf",
+      "source_page_count": 27,
+      "canonical_start_page": 61,
+      "canonical_end_page": 87,
+      "title": "Chapter 3: The World of Numbers",
+      "chapters": [
+        {
+          "chapter_id": "the-world-of-numbers",
+          "chapter_title": "The World of Numbers",
+          "source_start_page": 1,
+          "source_end_page": 27,
+          "canonical_start_page": 61,
+          "canonical_end_page": 87
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "iemh104.pdf",
+      "source_page_count": 24,
+      "canonical_start_page": 88,
+      "canonical_end_page": 111,
+      "title": "Chapter 4: Exploring Algebraic Identities",
+      "chapters": [
+        {
+          "chapter_id": "exploring-algebraic-identities",
+          "chapter_title": "Exploring Algebraic Identities",
+          "source_start_page": 1,
+          "source_end_page": 24,
+          "canonical_start_page": 88,
+          "canonical_end_page": 111
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "iemh105.pdf",
+      "source_page_count": 26,
+      "canonical_start_page": 112,
+      "canonical_end_page": 137,
+      "title": "Chapter 5: I'm Up and Down, and Round and Round",
+      "chapters": [
+        {
+          "chapter_id": "im-up-and-down-and-round-and-round",
+          "chapter_title": "I'm Up and Down, and Round and Round",
+          "source_start_page": 1,
+          "source_end_page": 26,
+          "canonical_start_page": 112,
+          "canonical_end_page": 137
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "iemh106.pdf",
+      "source_page_count": 37,
+      "canonical_start_page": 138,
+      "canonical_end_page": 174,
+      "title": "Chapter 6: Measuring Space — Perimeter and Area",
+      "chapters": [
+        {
+          "chapter_id": "measuring-space-perimeter-and-area",
+          "chapter_title": "Measuring Space: Perimeter and Area",
+          "source_start_page": 1,
+          "source_end_page": 37,
+          "canonical_start_page": 138,
+          "canonical_end_page": 174
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "iemh107.pdf",
+      "source_page_count": 19,
+      "canonical_start_page": 175,
+      "canonical_end_page": 193,
+      "title": "Chapter 7: The Mathematics of Maybe — Introduction to Probability",
+      "chapters": [
+        {
+          "chapter_id": "the-mathematics-of-maybe-introduction-to-probability",
+          "chapter_title": "The Mathematics of Maybe: Introduction to Probability",
+          "source_start_page": 1,
+          "source_end_page": 19,
+          "canonical_start_page": 175,
+          "canonical_end_page": 193
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "iemh108.pdf",
+      "source_page_count": 27,
+      "canonical_start_page": 194,
+      "canonical_end_page": 220,
+      "title": "Chapter 8: Predicting What Comes Next — Exploring Sequences and Progressions",
+      "chapters": [
+        {
+          "chapter_id": "predicting-what-comes-next-exploring-sequences-and-progressions",
+          "chapter_title": "Predicting What Comes Next: Exploring Sequences and Progressions",
+          "source_start_page": 1,
+          "source_end_page": 27,
+          "canonical_start_page": 194,
+          "canonical_end_page": 220
+        }
+      ]
+    }
+  ]
+}
