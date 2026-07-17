@@ -14,6 +14,7 @@ import urllib3
 
 import evaluate_opensearch_hybrid_retrieval as hybrid
 import evaluate_opensearch_vector_retrieval as vector
+from src.book_config import load_book_config
 
 
 GENERATION_MODEL_ID = "amazon.nova-lite-v1:0"
@@ -33,6 +34,79 @@ def utc_now() -> str:
     ).isoformat()
 
 
+def configure_runtime_from_config(
+    config_path: Path | None,
+) -> Any | None:
+    """Apply book configuration to retrieval and RAG."""
+
+    global GENERATION_MODEL_ID
+
+    if config_path is None:
+        return None
+
+    config = load_book_config(
+        config_path
+    )
+
+    vector.REGION = config.aws.region
+    vector.COLLECTION_ENDPOINT = (
+        config.opensearch.collection_endpoint
+    )
+    vector.INDEX_NAME = (
+        config.opensearch.index_name
+    )
+    vector.MODEL_ID = (
+        config.models.embedding.model_id
+    )
+    vector.DIMENSIONS = (
+        config.models.embedding.dimensions
+    )
+
+    hybrid.VECTOR_CANDIDATE_LIMIT = (
+        config.retrieval.vector_candidate_limit
+    )
+    hybrid.BM25_CANDIDATE_LIMIT = (
+        config.retrieval.bm25_candidate_limit
+    )
+    hybrid.CANDIDATE_LIMIT = max(
+        hybrid.VECTOR_CANDIDATE_LIMIT,
+        hybrid.BM25_CANDIDATE_LIMIT,
+    )
+    hybrid.RESULT_LIMIT = (
+        config.retrieval.result_limit
+    )
+    hybrid.RRF_CONSTANT = (
+        config.retrieval.rrf_constant
+    )
+    hybrid.VECTOR_WEIGHT = (
+        config.retrieval.vector_weight
+    )
+    hybrid.BM25_WEIGHT = (
+        config.retrieval.bm25_weight
+    )
+
+    GENERATION_MODEL_ID = (
+        config.models.generation.model_id
+    )
+
+    return config
+
+
+def resolve_top_k(
+    requested_top_k: int | None,
+    config: Any | None,
+) -> int:
+    if requested_top_k is not None:
+        return requested_top_k
+
+    if config is not None:
+        return int(
+            config.retrieval.result_limit
+        )
+
+    return DEFAULT_TOP_K
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -40,6 +114,17 @@ def parse_args() -> argparse.Namespace:
             "OpenSearch and generate a grounded "
             "answer with page citations."
         )
+    )
+
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "When omitted, legacy Kaveri defaults "
+            "are preserved."
+        ),
     )
 
     parser.add_argument(
@@ -51,7 +136,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--top-k",
         type=int,
-        default=DEFAULT_TOP_K,
+        default=None,
+        help=(
+            "Number of RAG context results. "
+            "Defaults to the configured result limit "
+            "or 5 in legacy mode."
+        ),
     )
 
     parser.add_argument(
@@ -62,6 +152,7 @@ def parse_args() -> argparse.Namespace:
             "list",
             "table",
             "figure",
+            "diagram",
         ],
         default=None,
     )
@@ -1241,6 +1332,23 @@ def validate_citations(
 def main() -> int:
     args = parse_args()
 
+    config = configure_runtime_from_config(
+        getattr(
+            args,
+            "config",
+            None,
+        )
+    )
+
+    top_k = resolve_top_k(
+        requested_top_k=getattr(
+            args,
+            "top_k",
+            None,
+        ),
+        config=config,
+    )
+
     question = args.query.strip()
 
     if not question:
@@ -1248,7 +1356,7 @@ def main() -> int:
             "Query cannot be empty."
         )
 
-    if args.top_k < 1:
+    if top_k < 1:
         raise ValueError(
             "top-k must be at least 1."
         )
@@ -1261,7 +1369,7 @@ def main() -> int:
 
     results = retrieve_context(
         query=question,
-        top_k=args.top_k,
+        top_k=top_k,
         modality=args.modality,
     )
 
@@ -1389,7 +1497,7 @@ def main() -> int:
             "rrf_constant": (
                 hybrid.RRF_CONSTANT
             ),
-            "top_k": args.top_k,
+            "top_k": top_k,
             "modality_filter": (
                 args.modality
             ),

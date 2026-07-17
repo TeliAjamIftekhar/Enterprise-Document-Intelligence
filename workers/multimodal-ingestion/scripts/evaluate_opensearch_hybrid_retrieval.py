@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import datetime, timezone
@@ -13,6 +14,8 @@ import evaluate_opensearch_vector_retrieval as vector_eval
 
 
 CANDIDATE_LIMIT = 20
+VECTOR_CANDIDATE_LIMIT = 20
+BM25_CANDIDATE_LIMIT = 20
 RESULT_LIMIT = 5
 RRF_CONSTANT = 60
 
@@ -46,6 +49,120 @@ SOURCE_FIELDS = [
     "embedding_text",
     "asset_s3_uris",
 ]
+
+
+def configure_runtime_from_config(
+    config_path: Path | None,
+) -> Any | None:
+    """Apply book configuration to hybrid retrieval."""
+
+    global CANDIDATE_LIMIT
+    global VECTOR_CANDIDATE_LIMIT
+    global BM25_CANDIDATE_LIMIT
+    global RESULT_LIMIT
+    global RRF_CONSTANT
+    global VECTOR_WEIGHT
+    global BM25_WEIGHT
+
+    config = (
+        vector_eval.configure_runtime_from_config(
+            config_path
+        )
+    )
+
+    if config is None:
+        return None
+
+    VECTOR_CANDIDATE_LIMIT = (
+        config.retrieval.vector_candidate_limit
+    )
+
+    BM25_CANDIDATE_LIMIT = (
+        config.retrieval.bm25_candidate_limit
+    )
+
+    CANDIDATE_LIMIT = max(
+        VECTOR_CANDIDATE_LIMIT,
+        BM25_CANDIDATE_LIMIT,
+    )
+
+    RESULT_LIMIT = (
+        config.retrieval.result_limit
+    )
+
+    RRF_CONSTANT = (
+        config.retrieval.rrf_constant
+    )
+
+    VECTOR_WEIGHT = (
+        config.retrieval.vector_weight
+    )
+
+    BM25_WEIGHT = (
+        config.retrieval.bm25_weight
+    )
+
+    return config
+
+
+def resolve_output_path(
+    requested_output: Path | None,
+    config: Any | None,
+) -> Path:
+    if requested_output is not None:
+        return requested_output
+
+    if config is not None:
+        return (
+            config.local_root
+            / "opensearch-serverless"
+            / (
+                "hybrid-retrieval-"
+                "evaluation-report.json"
+            )
+        )
+
+    return OUTPUT_PATH
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Evaluate hybrid textbook retrieval "
+            "using vector search, BM25, and weighted "
+            "reciprocal-rank fusion."
+        )
+    )
+
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "When omitted, legacy Kaveri defaults "
+            "are preserved."
+        ),
+    )
+
+    parser.add_argument(
+        "--test-cases",
+        type=Path,
+        default=None,
+        help=(
+            "Optional JSON file containing retrieval "
+            "test cases."
+        ),
+    )
+
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Optional report output path.",
+    )
+
+    return parser.parse_args()
 
 
 def utc_now() -> str:
@@ -92,9 +209,12 @@ def vector_search(
     candidate_modality: str | None,
 ) -> list[dict[str, Any]]:
     candidate_limit = (
-        10
+        min(
+            10,
+            VECTOR_CANDIDATE_LIMIT,
+        )
         if candidate_modality == "figure"
-        else CANDIDATE_LIMIT
+        else VECTOR_CANDIDATE_LIMIT
     )
 
     parameters: dict[str, Any] = {
@@ -114,7 +234,7 @@ def vector_search(
         "_source": SOURCE_FIELDS,
         "query": {
             "knn": {
-                "embedding": parameters
+                vector_eval.VECTOR_FIELD: parameters
             }
         },
     }
@@ -159,11 +279,16 @@ def bm25_search(
             }
         }
 
-        candidate_limit = 10
+        candidate_limit = min(
+            10,
+            BM25_CANDIDATE_LIMIT,
+        )
 
     else:
         query_body = text_query
-        candidate_limit = CANDIDATE_LIMIT
+        candidate_limit = (
+            BM25_CANDIDATE_LIMIT
+        )
 
     body = {
         "size": candidate_limit,
@@ -480,6 +605,21 @@ def run_test(
 
 
 def main() -> int:
+    args = parse_args()
+
+    config = configure_runtime_from_config(
+        args.config
+    )
+
+    test_cases = vector_eval.load_test_cases(
+        args.test_cases
+    )
+
+    output_path = resolve_output_path(
+        requested_output=args.output,
+        config=config,
+    )
+
     bedrock_client = boto3.client(
         "bedrock-runtime",
         region_name=vector_eval.REGION,
@@ -507,17 +647,17 @@ def main() -> int:
     print(f"Vector weight: {VECTOR_WEIGHT}")
     print(f"BM25 weight:   {BM25_WEIGHT}")
     print(
-        f"Tests:    {len(vector_eval.TEST_CASES)}"
+        f"Tests:    {len(test_cases)}"
     )
     print()
 
     for test_number, test_case in enumerate(
-        vector_eval.TEST_CASES,
+        test_cases,
         start=1,
     ):
         print(
             f"[{test_number}/"
-            f"{len(vector_eval.TEST_CASES)}] "
+            f"{len(test_cases)}] "
             f"{test_case['test_id']}"
         )
 
@@ -582,6 +722,21 @@ def main() -> int:
     report = {
         "schema_version": "1.0",
         "generated_at": utc_now(),
+        "runtime_mode": (
+            "book_config"
+            if config is not None
+            else "legacy"
+        ),
+        "config_path": (
+            str(args.config)
+            if args.config is not None
+            else None
+        ),
+        "test_cases_path": (
+            str(args.test_cases)
+            if args.test_cases is not None
+            else None
+        ),
         "status": (
             "PASSED"
             if all_tests_passed
@@ -599,7 +754,16 @@ def main() -> int:
         "vector_weight": VECTOR_WEIGHT,
         "bm25_weight": BM25_WEIGHT,
         "candidate_limit": CANDIDATE_LIMIT,
+        "vector_candidate_limit": (
+            VECTOR_CANDIDATE_LIMIT
+        ),
+        "bm25_candidate_limit": (
+            BM25_CANDIDATE_LIMIT
+        ),
         "result_limit": RESULT_LIMIT,
+        "vector_field": (
+            vector_eval.VECTOR_FIELD
+        ),
         "embedding_model_id": (
             vector_eval.MODEL_ID
         ),
@@ -621,12 +785,12 @@ def main() -> int:
         "tests": results,
     }
 
-    OUTPUT_PATH.parent.mkdir(
+    output_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    OUTPUT_PATH.write_text(
+    output_path.write_text(
         json.dumps(
             report,
             indent=2,
@@ -660,7 +824,7 @@ def main() -> int:
             else "FAILED"
         )
     )
-    print(f"Report:               {OUTPUT_PATH}")
+    print(f"Report:               {output_path}")
 
     return 0 if all_tests_passed else 1
 

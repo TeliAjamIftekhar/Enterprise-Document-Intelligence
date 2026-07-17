@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
@@ -13,6 +14,8 @@ import boto3
 import urllib3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
+
+from src.book_config import load_book_config
 
 
 REGION = "us-east-1"
@@ -28,6 +31,7 @@ INDEX_NAME = "grade-9-english-kaveri-v1"
 
 MODEL_ID = "amazon.titan-embed-text-v2:0"
 DIMENSIONS = 1024
+VECTOR_FIELD = "embedding"
 TOP_K = 5
 
 OUTPUT_PATH = Path(
@@ -107,6 +111,197 @@ RETRYABLE_HTTP_STATUS = {
     503,
     504,
 }
+
+
+def configure_runtime_from_config(
+    config_path: Path | None,
+) -> Any | None:
+    """Apply book configuration to vector retrieval."""
+
+    global REGION
+    global COLLECTION_ENDPOINT
+    global INDEX_NAME
+    global MODEL_ID
+    global DIMENSIONS
+    global VECTOR_FIELD
+    global TOP_K
+
+    if config_path is None:
+        return None
+
+    config = load_book_config(
+        config_path
+    )
+
+    REGION = config.aws.region
+    COLLECTION_ENDPOINT = (
+        config.opensearch.collection_endpoint
+    )
+    INDEX_NAME = (
+        config.opensearch.index_name
+    )
+    MODEL_ID = (
+        config.models.embedding.model_id
+    )
+    DIMENSIONS = (
+        config.models.embedding.dimensions
+    )
+    VECTOR_FIELD = (
+        config.opensearch.vector_field
+    )
+    TOP_K = (
+        config.retrieval.result_limit
+    )
+
+    return config
+
+
+def load_test_cases(
+    path: Path | None,
+) -> list[dict[str, Any]]:
+    if path is None:
+        return [
+            dict(test_case)
+            for test_case in TEST_CASES
+        ]
+
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Test-cases file not found: {path}"
+        )
+
+    try:
+        payload = json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Invalid JSON in {path}: {exc}"
+        ) from exc
+
+    if isinstance(payload, dict):
+        payload = payload.get("tests")
+
+    if (
+        not isinstance(payload, list)
+        or not payload
+    ):
+        raise ValueError(
+            "Test-cases JSON must be a non-empty "
+            "array or an object containing a "
+            "non-empty 'tests' array."
+        )
+
+    required_fields = {
+        "test_id",
+        "query",
+        "expected_record_id",
+        "expected_page",
+        "expected_modality",
+    }
+
+    test_cases: list[
+        dict[str, Any]
+    ] = []
+
+    for index, value in enumerate(
+        payload,
+        start=1,
+    ):
+        if not isinstance(value, dict):
+            raise ValueError(
+                f"Test case {index} must be "
+                "a JSON object."
+            )
+
+        missing = sorted(
+            required_fields - value.keys()
+        )
+
+        if missing:
+            raise ValueError(
+                f"Test case {index} is missing "
+                f"required fields: {missing}"
+            )
+
+        if not isinstance(
+            value["expected_page"],
+            int,
+        ):
+            raise ValueError(
+                f"Test case {index} expected_page "
+                "must be an integer."
+            )
+
+        test_cases.append(
+            dict(value)
+        )
+
+    return test_cases
+
+
+def resolve_output_path(
+    requested_output: Path | None,
+    config: Any | None,
+) -> Path:
+    if requested_output is not None:
+        return requested_output
+
+    if config is not None:
+        return (
+            config.local_root
+            / "opensearch-serverless"
+            / (
+                "vector-retrieval-"
+                "evaluation-report.json"
+            )
+        )
+
+    return OUTPUT_PATH
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Evaluate textbook vector retrieval "
+            "against expected OpenSearch records."
+        )
+    )
+
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional book configuration JSON. "
+            "When omitted, legacy Kaveri defaults "
+            "are preserved."
+        ),
+    )
+
+    parser.add_argument(
+        "--test-cases",
+        type=Path,
+        default=None,
+        help=(
+            "Optional JSON file containing retrieval "
+            "test cases."
+        ),
+    )
+
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help=(
+            "Optional report output path."
+        ),
+    )
+
+    return parser.parse_args()
 
 
 def utc_now() -> str:
@@ -367,7 +562,7 @@ def run_test(
         ],
         "query": {
             "knn": {
-                "embedding": knn_parameters
+                VECTOR_FIELD: knn_parameters
             }
         },
     }
@@ -531,6 +726,21 @@ def run_test(
 
 
 def main() -> int:
+    args = parse_args()
+
+    config = configure_runtime_from_config(
+        args.config
+    )
+
+    test_cases = load_test_cases(
+        args.test_cases
+    )
+
+    output_path = resolve_output_path(
+        requested_output=args.output,
+        config=config,
+    )
+
     bedrock_client = boto3.client(
         "bedrock-runtime",
         region_name=REGION,
@@ -551,15 +761,15 @@ def main() -> int:
     print("============================================")
     print(f"Endpoint: {COLLECTION_ENDPOINT}")
     print(f"Index:    {INDEX_NAME}")
-    print(f"Tests:    {len(TEST_CASES)}")
+    print(f"Tests:    {len(test_cases)}")
     print()
 
     for index, test_case in enumerate(
-        TEST_CASES,
+        test_cases,
         start=1,
     ):
         print(
-            f"[{index}/{len(TEST_CASES)}] "
+            f"[{index}/{len(test_cases)}] "
             f"{test_case['test_id']}"
         )
 
@@ -605,6 +815,21 @@ def main() -> int:
     report = {
         "schema_version": "1.0",
         "generated_at": utc_now(),
+        "runtime_mode": (
+            "book_config"
+            if config is not None
+            else "legacy"
+        ),
+        "config_path": (
+            str(args.config)
+            if args.config is not None
+            else None
+        ),
+        "test_cases_path": (
+            str(args.test_cases)
+            if args.test_cases is not None
+            else None
+        ),
         "status": (
             "PASSED"
             if passed_count == len(results)
@@ -617,6 +842,8 @@ def main() -> int:
         "index_name": INDEX_NAME,
         "embedding_model_id": MODEL_ID,
         "embedding_dimensions": DIMENSIONS,
+        "vector_field": VECTOR_FIELD,
+        "top_k": TOP_K,
         "test_count": len(results),
         "passed_test_count": passed_count,
         "failed_test_count": (
@@ -640,12 +867,12 @@ def main() -> int:
         "tests": results,
     }
 
-    OUTPUT_PATH.parent.mkdir(
+    output_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    OUTPUT_PATH.write_text(
+    output_path.write_text(
         json.dumps(
             report,
             indent=2,
@@ -679,7 +906,7 @@ def main() -> int:
             else "FAILED"
         )
     )
-    print(f"Report:               {OUTPUT_PATH}")
+    print(f"Report:               {output_path}")
 
     return (
         0
