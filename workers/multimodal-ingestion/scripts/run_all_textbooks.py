@@ -37,10 +37,28 @@ SCRIPTS_ROOT = Path(
     "workers/multimodal-ingestion/scripts"
 )
 
-SURYA_APPROVAL_DEFAULT = Path(
+OCR_APPROVAL_ROOT = Path(
     "data/textbook-automation/"
-    "ocr-approvals/surya-urdu-v1.json"
+    "ocr-approvals"
 )
+
+# Retained for direct legacy Urdu tooling only.
+SURYA_APPROVAL_DEFAULT = (
+    OCR_APPROVAL_ROOT
+    / "surya-urdu-v1.json"
+)
+
+
+def ocr_approval_path_for_book(
+    book_id: str,
+    version: str,
+) -> Path:
+    """Return the approval record dedicated to one book."""
+
+    return (
+        OCR_APPROVAL_ROOT
+        / f"surya-{book_id}-{version}.json"
+    )
 
 KNOWN_VERIFIED_BOOKS = {
     "grade-9-mathematics-ganita-manjari",
@@ -299,7 +317,10 @@ def paths_for_book(
             / "SURYA_OCR_FALLBACK_VERIFIED"
         ),
         "ocr_approval": (
-            SURYA_APPROVAL_DEFAULT
+            ocr_approval_path_for_book(
+                book_id,
+                version,
+            )
         ),
         "log": (
             LOG_ROOT

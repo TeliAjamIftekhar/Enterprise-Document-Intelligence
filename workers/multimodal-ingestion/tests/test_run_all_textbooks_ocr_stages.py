@@ -84,9 +84,15 @@ def test_paths_include_ocr_pipeline_artifacts() -> None:
 
     assert required.issubset(paths)
 
+    assert paths["ocr_approval"] == Path(
+        "data/textbook-automation/"
+        "ocr-approvals/"
+        "surya-grade-1-urdu-test-v1.json"
+    )
+
     assert (
         paths["ocr_approval"]
-        == runner.SURYA_APPROVAL_DEFAULT
+        != runner.SURYA_APPROVAL_DEFAULT
     )
 
 
