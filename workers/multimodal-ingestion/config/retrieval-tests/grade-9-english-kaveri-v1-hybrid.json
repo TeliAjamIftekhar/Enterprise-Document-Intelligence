@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-9-english-kaveri",
+  "book_version": "v1",
+  "index_name": "grade-9-english-kaveri-v1",
+  "tests": [
+    {
+      "test_id": "mirror-work-table",
+      "query": "Which state makes mirror work hand fans and what materials are used?",
+      "expected_record_id": "grade-9-english-kaveri:v1:bda:d2376bfa-81c1-4c3b-8f6c-979312e56b28:chunk-0001",
+      "expected_page": 93,
+      "expected_modality": "table"
+    },
+    {
+      "test_id": "indigenous-vocabulary",
+      "query": "What does the word indigenous mean?",
+      "expected_record_id": "grade-9-english-kaveri:v1:bda:407ebf75-2a37-4b41-9188-dfbb10c40d13:chunk-0001",
+      "expected_page": 90,
+      "expected_modality": "table"
+    },
+    {
+      "test_id": "ancient-pankhi-evidence",
+      "query": "Where can evidence of ancient pankhi fans be found?",
+      "expected_record_id": "grade-9-english-kaveri:v1:bda:7fa22836-fbca-4c14-83fc-ea406a71f717:chunk-0001",
+      "expected_page": 90,
+      "expected_modality": "paragraph"
+    },
+    {
+      "test_id": "zardozi-visual",
+      "query": "Show the postage stamp depicting a Zardozi hand fan from Rajasthan.",
+      "expected_record_id": "grade-9-english-kaveri:v1:bda:8eea6340-6410-4d0e-ad75-79e3d798ab6f:chunk-0001",
+      "expected_page": 91,
+      "expected_modality": "figure",
+      "candidate_modality": "figure"
+    }
+  ]
+}

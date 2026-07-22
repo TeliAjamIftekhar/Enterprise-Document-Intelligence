@@ -176,28 +176,144 @@ def test_rejects_invalid_document_order():
         )
 
 
-def test_rejects_gap_between_chapters():
+def test_rejects_overlapping_chapter_ranges():
     raw_manifest = load_raw_manifest()
 
-    second_chapter = (
-        raw_manifest["documents"][1]
-        ["chapters"][1]
+    document = next(
+        document
+        for document in raw_manifest["documents"]
+        if len(document.get("chapters", [])) >= 2
     )
 
+    first_chapter = document["chapters"][0]
+    second_chapter = document["chapters"][1]
+
+    # Force a one-page overlap while keeping
+    # source/canonical range lengths equal.
     second_chapter[
         "source_start_page"
-    ] = 24
+    ] = first_chapter[
+        "source_end_page"
+    ]
+
     second_chapter[
         "canonical_start_page"
-    ] = 44
+    ] = first_chapter[
+        "canonical_end_page"
+    ]
 
     with pytest.raises(
         ValidationError,
-        match="Chapter source ranges",
+        match=(
+            "Chapter source ranges must "
+            "be ordered and non-overlapping"
+        ),
     ):
         ChapterManifest.model_validate(
             raw_manifest
         )
+
+
+def test_allows_unassigned_pages_between_chapters():
+    raw_manifest = load_raw_manifest()
+
+    document = next(
+        document
+        for document in raw_manifest["documents"]
+        if (
+            len(document.get("chapters", [])) >= 2
+            and document["chapters"][1][
+                "source_start_page"
+            ]
+            < document["chapters"][1][
+                "source_end_page"
+            ]
+        )
+    )
+
+    second_chapter = document[
+        "chapters"
+    ][1]
+
+    # Leave one valid, unassigned page between
+    # the two chapter ranges.
+    second_chapter[
+        "source_start_page"
+    ] += 1
+
+    second_chapter[
+        "canonical_start_page"
+    ] += 1
+
+    manifest = (
+        ChapterManifest.model_validate(
+            raw_manifest
+        )
+    )
+
+    assert manifest.book_id == (
+        raw_manifest["book_id"]
+    )
+
+
+def test_allows_unassigned_document_edge_pages():
+    raw_manifest = load_raw_manifest()
+
+    document = next(
+        document
+        for document in raw_manifest["documents"]
+        if (
+            len(document.get("chapters", [])) >= 2
+            and document["chapters"][0][
+                "source_start_page"
+            ]
+            < document["chapters"][0][
+                "source_end_page"
+            ]
+            and document["chapters"][-1][
+                "source_start_page"
+            ]
+            < document["chapters"][-1][
+                "source_end_page"
+            ]
+        )
+    )
+
+    first_chapter = document[
+        "chapters"
+    ][0]
+
+    last_chapter = document[
+        "chapters"
+    ][-1]
+
+    # Page 1 remains valid document/unit
+    # metadata but is not assigned to a chapter.
+    first_chapter[
+        "source_start_page"
+    ] += 1
+
+    first_chapter[
+        "canonical_start_page"
+    ] += 1
+
+    # The final document page may likewise be an
+    # activity or unit-summary page.
+    last_chapter[
+        "source_end_page"
+    ] -= 1
+
+    last_chapter[
+        "canonical_end_page"
+    ] -= 1
+
+    manifest = (
+        ChapterManifest.model_validate(
+            raw_manifest
+        )
+    )
+
+    assert manifest.chapter_count > 0
 
 
 def test_rejects_wrong_canonical_page_count():

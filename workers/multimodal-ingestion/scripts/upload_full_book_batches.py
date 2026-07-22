@@ -18,12 +18,71 @@ from botocore.exceptions import BotoCoreError, ClientError
 DEFAULT_REGION = "us-east-1"
 DEFAULT_BUCKET = "edi-documents-ajam-2026"
 
-DEFAULT_MANIFEST_S3_KEY = (
-    "bda-input/grade-9/"
-    "grade-9-english-kaveri/"
-    "v1/full-book/"
-    "full-book-batch-manifest.json"
-)
+def derive_manifest_s3_key(
+    manifest: dict[str, Any],
+) -> str:
+    """
+    Derive the manifest key from this book's batch
+    S3 prefix. Never use another book's default.
+    """
+
+    batching = manifest.get("batching")
+
+    if isinstance(batching, dict):
+        prefix = batching.get("s3_prefix")
+
+        if isinstance(prefix, str) and prefix:
+            normalized = prefix.strip()
+
+            if normalized.startswith("s3://"):
+                without_scheme = normalized[5:]
+
+                if "/" not in without_scheme:
+                    raise ValueError(
+                        "Invalid batching S3 prefix: "
+                        f"{prefix!r}"
+                    )
+
+                _, normalized = (
+                    without_scheme.split("/", 1)
+                )
+
+            normalized = normalized.strip("/")
+
+            if normalized.endswith("/batches"):
+                root = normalized[:-len("/batches")]
+
+                return (
+                    f"{root}/"
+                    "full-book-batch-manifest.json"
+                )
+
+    batches = manifest.get("batches")
+
+    if isinstance(batches, list) and batches:
+        first_batch = batches[0]
+
+        if isinstance(first_batch, dict):
+            batch_key = first_batch.get("s3_key")
+
+            if (
+                isinstance(batch_key, str)
+                and "/batches/" in batch_key
+            ):
+                root = batch_key.split(
+                    "/batches/",
+                    1,
+                )[0].strip("/")
+
+                return (
+                    f"{root}/"
+                    "full-book-batch-manifest.json"
+                )
+
+    raise ValueError(
+        "Unable to derive manifest S3 key from "
+        "the batch manifest."
+    )
 
 
 def utc_now() -> str:
@@ -659,7 +718,12 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--manifest-s3-key",
-        default=DEFAULT_MANIFEST_S3_KEY,
+        default=None,
+        help=(
+            "Optional manifest S3 key override. "
+            "When omitted, the key is derived "
+            "from this book's batch S3 prefix."
+        ),
     )
 
     parser.add_argument(
@@ -681,6 +745,13 @@ def main() -> int:
         args.manifest
     )
 
+
+    manifest_s3_key = (
+        args.manifest_s3_key
+        or derive_manifest_s3_key(
+            manifest
+        )
+    )
     local_items = validate_manifest(
         manifest
     )
@@ -981,7 +1052,7 @@ def main() -> int:
             uploaded_results
         ),
         "manifest_s3_key": (
-            args.manifest_s3_key
+            manifest_s3_key
         ),
     }
 
@@ -997,7 +1068,7 @@ def main() -> int:
     s3_client.upload_file(
         Filename=str(args.manifest),
         Bucket=args.bucket,
-        Key=args.manifest_s3_key,
+        Key=manifest_s3_key,
         ExtraArgs={
             "ContentType": (
                 "application/json"
@@ -1025,7 +1096,7 @@ def main() -> int:
     manifest_head = (
         s3_client.head_object(
             Bucket=args.bucket,
-            Key=args.manifest_s3_key,
+            Key=manifest_s3_key,
         )
     )
 
@@ -1059,7 +1130,7 @@ def main() -> int:
         ),
         "manifest_s3_uri": (
             f"s3://{args.bucket}/"
-            f"{args.manifest_s3_key}"
+            f"{manifest_s3_key}"
         ),
         "upload_requested": True,
         "batch_count": len(
@@ -1098,7 +1169,7 @@ def main() -> int:
     print(
         f"Manifest S3:     "
         f"s3://{args.bucket}/"
-        f"{args.manifest_s3_key}"
+        f"{manifest_s3_key}"
     )
     print("BDA invoked:     False")
     print(f"Report:          {args.report}")

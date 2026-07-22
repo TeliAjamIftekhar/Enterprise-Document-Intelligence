@@ -601,23 +601,49 @@ def successful_download(
         path
     )
 
+    source_page_start = int(
+        report.get(
+            "source_page_start",
+            0,
+        )
+    )
+
+    source_page_end = int(
+        report.get(
+            "source_page_end",
+            0,
+        )
+    )
+
+    expected_page_count = (
+        source_page_end
+        - source_page_start
+        + 1
+    )
+
+    actual_page_count = int(
+        report.get(
+            "result_page_count",
+            0,
+        )
+    )
+
     if (
         report.get("status")
         == "VALIDATED"
         and report.get("validated")
         is True
-        and int(
-            report.get(
-                "result_page_count",
-                0,
-            )
-        )
-        == 20
+        and expected_page_count > 0
+        and actual_page_count
+        == expected_page_count
     ):
         return report
 
     raise RuntimeError(
-        f"Invalid download report: {path}"
+        "Invalid download report: "
+        f"{path} | "
+        f"expected pages={expected_page_count}, "
+        f"actual pages={actual_page_count}"
     )
 
 
@@ -971,6 +997,7 @@ def process_batch(
     results_root: Path,
     config_path: Path | None,
     vector_dimensions: int,
+    through_stage: str,
 ) -> dict[str, Any]:
     batch_id = str(
         batch["batch_id"]
@@ -1013,6 +1040,45 @@ def process_batch(
     existing_job = successful_job(
         job_path
     )
+
+    if (
+        through_stage == "bda-normalized"
+        and not execute
+    ):
+        for stage in (
+            "preflight",
+            "bda",
+            "download",
+            "normalize",
+            "validate",
+        ):
+            result["stages"][stage] = (
+                "RUN_OR_RESUME"
+            )
+
+        for stage in (
+            "prepare_embeddings",
+            "titan_embeddings",
+            "prepare_bulk",
+            "upload_opensearch",
+        ):
+            result["stages"][stage] = (
+                "SKIPPED_THROUGH_STAGE"
+            )
+
+        result["status"] = "PLANNED"
+
+        print(
+            "PLAN: preflight → BDA → download "
+            "→ normalize → validate"
+        )
+        print(
+            "STOP: BDA_NORMALIZED "
+            "(Titan/OpenSearch handled by "
+            "the master runner)"
+        )
+
+        return result
 
     # Hard safety boundary: dry-run mode must return
     # before any subprocess, AWS, model, or OpenSearch call.
@@ -1299,6 +1365,37 @@ def process_batch(
         write_validation_marker(
             normalized_dir
         )
+
+    if through_stage == "bda-normalized":
+        for stage in (
+            "prepare_embeddings",
+            "titan_embeddings",
+            "prepare_bulk",
+            "upload_opensearch",
+        ):
+            result["stages"][stage] = (
+                "SKIPPED_THROUGH_STAGE"
+            )
+
+        result.update(
+            {
+                "status": "COMPLETED",
+                "completed_through": (
+                    "BDA_NORMALIZED"
+                ),
+                "normalized_dir": str(
+                    normalized_dir
+                ),
+            }
+        )
+
+        print(
+            f"COMPLETED: {batch_id} "
+            f"pages {page_start}-{page_end} "
+            "through BDA_NORMALIZED"
+        )
+
+        return result
 
     embedding_ready_dir = (
         normalized_dir
@@ -1631,6 +1728,20 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
+    parser.add_argument(
+        "--through-stage",
+        choices=(
+            "bda-normalized",
+            "indexed",
+        ),
+        default="indexed",
+        help=(
+            "Stop after validated BDA "
+            "normalization, or continue through "
+            "Titan embeddings and OpenSearch."
+        ),
+    )
+
     return parser.parse_args()
 
 
@@ -1767,6 +1878,7 @@ def main() -> int:
                         "vector_dimensions"
                     ]
                 ),
+                through_stage=args.through_stage,
             )
 
             report["batches"].append(

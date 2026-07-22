@@ -73,7 +73,7 @@ class SourceArchiveConfig(
 ):
     bucket: str
     key: str
-    archive_root: str
+    archive_root: str | None = None
     supplementary_assets: list[str] = Field(
         default_factory=list
     )
@@ -108,8 +108,11 @@ class SourceArchiveConfig(
     @classmethod
     def validate_archive_root(
         cls,
-        value: str,
-    ) -> str:
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
         return validate_relative_posix_path(
             value,
             label="Archive root",
@@ -396,28 +399,48 @@ class SourceDocument(
         if not self.chapters:
             return self
 
-        expected_source_start = 1
-        expected_canonical_start = (
-            self.canonical_start_page
+        previous_source_end = 0
+        previous_canonical_end = (
+            self.canonical_start_page - 1
         )
 
         for chapter in self.chapters:
             if (
+                chapter.source_end_page
+                > self.source_page_count
+            ):
+                raise ValueError(
+                    "Chapter source range is "
+                    "outside the document."
+                )
+
+            if not (
+                self.canonical_start_page
+                <= chapter.canonical_start_page
+                <= chapter.canonical_end_page
+                <= self.canonical_end_page
+            ):
+                raise ValueError(
+                    "Chapter canonical range is "
+                    "outside the document."
+                )
+
+            if (
                 chapter.source_start_page
-                != expected_source_start
+                <= previous_source_end
             ):
                 raise ValueError(
                     "Chapter source ranges must "
-                    "be contiguous and start at 1."
+                    "be ordered and non-overlapping."
                 )
 
             if (
                 chapter.canonical_start_page
-                != expected_canonical_start
+                <= previous_canonical_end
             ):
                 raise ValueError(
-                    "Chapter canonical ranges "
-                    "must be contiguous."
+                    "Chapter canonical ranges must "
+                    "be ordered and non-overlapping."
                 )
 
             expected_from_offset = (
@@ -436,30 +459,12 @@ class SourceDocument(
                     "page."
                 )
 
-            expected_source_start = (
-                chapter.source_end_page + 1
-            )
-            expected_canonical_start = (
-                chapter.canonical_end_page + 1
+            previous_source_end = (
+                chapter.source_end_page
             )
 
-        if (
-            self.chapters[-1].source_end_page
-            != self.source_page_count
-        ):
-            raise ValueError(
-                "Chapter source ranges must "
-                "cover the complete document."
-            )
-
-        if (
-            self.chapters[-1]
-            .canonical_end_page
-            != self.canonical_end_page
-        ):
-            raise ValueError(
-                "Chapter canonical ranges must "
-                "cover the complete document."
+            previous_canonical_end = (
+                chapter.canonical_end_page
             )
 
         return self

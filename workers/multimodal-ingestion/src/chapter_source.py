@@ -72,6 +72,23 @@ def validate_member_path(
     return member_path
 
 
+def archive_member_name(
+    archive_root: str | None,
+    relative_name: str,
+) -> str:
+    relative_path = PurePosixPath(
+        relative_name
+    )
+
+    if archive_root is None:
+        return relative_path.as_posix()
+
+    return (
+        PurePosixPath(archive_root)
+        / relative_path
+    ).as_posix()
+
+
 def expected_archive_members(
     manifest: ChapterManifest,
 ) -> set[str]:
@@ -80,18 +97,18 @@ def expected_archive_members(
     )
 
     expected = {
-        (
-            PurePosixPath(archive_root)
-            / document.source_filename
-        ).as_posix()
+        archive_member_name(
+            archive_root,
+            document.source_filename,
+        )
         for document in manifest.documents
     }
 
     expected.update(
-        (
-            PurePosixPath(archive_root)
-            / asset
-        ).as_posix()
+        archive_member_name(
+            archive_root,
+            asset,
+        )
         for asset in (
             manifest.source_archive
             .supplementary_assets
@@ -363,11 +380,11 @@ def extract_chapter_archive(
                 manifest.documents
             ):
                 archive_member = (
-                    PurePosixPath(
-                        archive_root
+                    archive_member_name(
+                        archive_root,
+                        document.source_filename,
                     )
-                    / document.source_filename
-                ).as_posix()
+                )
 
                 info = member_by_name[
                     archive_member
@@ -433,11 +450,11 @@ def extract_chapter_archive(
                 .supplementary_assets
             ):
                 archive_member = (
-                    PurePosixPath(
-                        archive_root
+                    archive_member_name(
+                        archive_root,
+                        asset,
                     )
-                    / asset
-                ).as_posix()
+                )
 
                 info = member_by_name[
                     archive_member

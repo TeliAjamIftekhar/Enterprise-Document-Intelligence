@@ -272,3 +272,115 @@ def test_rejects_unsafe_zip_path(
                 tmp_path / "report.json"
             ),
         )
+
+
+
+def build_root_level_manifest(
+) -> ChapterManifest:
+    return ChapterManifest.model_validate({
+        "schema_version": "1.0",
+        "book_id": "grade-1-root-book",
+        "book_version": "v1-test",
+        "title": "Root-Level Test Book",
+        "ordering_strategy": "manifest",
+        "source_archive": {
+            "bucket": "example-book-bucket",
+            "key": "books/root-book.zip",
+            "archive_root": None,
+            "supplementary_assets": []
+        },
+        "canonical_layout": {
+            "leading_blank_pages": 0,
+            "source_document_pages": 3,
+            "trailing_blank_pages": 0,
+            "canonical_page_count": 3,
+            "source_to_canonical_page_offset": 0
+        },
+        "documents": [
+            {
+                "order": 1,
+                "document_id": "front-matter",
+                "document_type": "front_matter",
+                "unit_number": None,
+                "source_filename": "root-front.pdf",
+                "source_page_count": 1,
+                "canonical_start_page": 1,
+                "canonical_end_page": 1,
+                "title": "Front Matter",
+                "chapters": []
+            },
+            {
+                "order": 2,
+                "document_id": "unit-1",
+                "document_type": "unit",
+                "unit_number": 1,
+                "source_filename": "root-unit-1.pdf",
+                "source_page_count": 2,
+                "canonical_start_page": 2,
+                "canonical_end_page": 3,
+                "title": "Unit 1",
+                "chapters": [
+                    {
+                        "chapter_id": "unit-one",
+                        "chapter_title": "Unit One",
+                        "source_start_page": 1,
+                        "source_end_page": 2,
+                        "canonical_start_page": 2,
+                        "canonical_end_page": 3
+                    }
+                ]
+            }
+        ]
+    })
+
+
+def test_extracts_root_level_archive(
+    tmp_path: Path,
+):
+    archive_path = (
+        tmp_path / "root-book.zip"
+    )
+
+    with ZipFile(
+        archive_path,
+        "w",
+    ) as archive:
+        archive.writestr(
+            "root-front.pdf",
+            build_pdf_bytes(1),
+        )
+        archive.writestr(
+            "root-unit-1.pdf",
+            build_pdf_bytes(2),
+        )
+
+    target_directory = (
+        tmp_path / "root-extracted"
+    )
+
+    report_path = (
+        tmp_path / "root-report.json"
+    )
+
+    report = extract_chapter_archive(
+        archive_path,
+        target_directory,
+        build_root_level_manifest(),
+        report_path=report_path,
+    )
+
+    assert report["status"] == "VALID"
+    assert report["document_count"] == 2
+    assert report["source_page_count"] == 3
+
+    assert (
+        target_directory
+        / "root-front.pdf"
+    ).is_file()
+
+    assert (
+        target_directory
+        / "root-unit-1.pdf"
+    ).is_file()
+
+    assert report_path.is_file()

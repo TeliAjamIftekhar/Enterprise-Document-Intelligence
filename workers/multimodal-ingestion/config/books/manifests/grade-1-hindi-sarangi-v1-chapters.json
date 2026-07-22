@@ -1,0 +1,465 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-1-hindi-sarangi",
+  "book_version": "v1",
+  "title": "Sarangi Hindi Textbook for Grade 1",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-I/Hindi-Sarangi.zip",
+    "archive_root": null,
+    "supplementary_assets": []
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 136,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 136,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "ahsr1ps.pdf",
+      "source_page_count": 22,
+      "canonical_start_page": 1,
+      "canonical_end_page": 22,
+      "title": "Sarangi Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "ahsr101.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 23,
+      "canonical_end_page": 29,
+      "title": "परिवार",
+      "chapters": [
+        {
+          "chapter_id": "chapter-01",
+          "chapter_title": "मीना का परिवार",
+          "source_start_page": 2,
+          "source_end_page": 6,
+          "canonical_start_page": 24,
+          "canonical_end_page": 28
+        },
+        {
+          "chapter_id": "supplementary-01",
+          "chapter_title": "चंदा मामा दूर के",
+          "source_start_page": 7,
+          "source_end_page": 7,
+          "canonical_start_page": 29,
+          "canonical_end_page": 29
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "ahsr102.pdf",
+      "source_page_count": 3,
+      "canonical_start_page": 30,
+      "canonical_end_page": 32,
+      "title": "दादा-दादी",
+      "chapters": [
+        {
+          "chapter_id": "chapter-02",
+          "chapter_title": "दादा-दादी",
+          "source_start_page": 1,
+          "source_end_page": 3,
+          "canonical_start_page": 30,
+          "canonical_end_page": 32
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "ahsr103.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 33,
+      "canonical_end_page": 37,
+      "title": "रीना का दिन",
+      "chapters": [
+        {
+          "chapter_id": "chapter-03",
+          "chapter_title": "रीना का दिन",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 33,
+          "canonical_end_page": 37
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "ahsr104.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 38,
+      "canonical_end_page": 46,
+      "title": "रानी भी",
+      "chapters": [
+        {
+          "chapter_id": "chapter-04",
+          "chapter_title": "रानी भी",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 38,
+          "canonical_end_page": 46
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "ahsr105.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 47,
+      "canonical_end_page": 55,
+      "title": "मुर्गा बोला कुकड़ ू -कूँ",
+      "chapters": [
+        {
+          "chapter_id": "supplementary-02",
+          "chapter_title": "मुर्गा बोला कुकड़ू-कूँ",
+          "source_start_page": 1,
+          "source_end_page": 3,
+          "canonical_start_page": 47,
+          "canonical_end_page": 49
+        },
+        {
+          "chapter_id": "chapter-05",
+          "chapter_title": "मिठाई",
+          "source_start_page": 4,
+          "source_end_page": 9,
+          "canonical_start_page": 50,
+          "canonical_end_page": 55
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "ahsr106.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 56,
+      "canonical_end_page": 64,
+      "title": "तीन साथी",
+      "chapters": [
+        {
+          "chapter_id": "chapter-06",
+          "chapter_title": "तीन साथी",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 56,
+          "canonical_end_page": 64
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "ahsr107.pdf",
+      "source_page_count": 3,
+      "canonical_start_page": 65,
+      "canonical_end_page": 67,
+      "title": "वाह, मेरे घोड़े़!",
+      "chapters": [
+        {
+          "chapter_id": "chapter-07",
+          "chapter_title": "वाह, मेरे घोड़े!",
+          "source_start_page": 1,
+          "source_end_page": 3,
+          "canonical_start_page": 65,
+          "canonical_end_page": 67
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "ahsr108.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 68,
+      "canonical_end_page": 75,
+      "title": "खततरे में साँप",
+      "chapters": [
+        {
+          "chapter_id": "chapter-08",
+          "chapter_title": "खतरे में साँप",
+          "source_start_page": 1,
+          "source_end_page": 4,
+          "canonical_start_page": 68,
+          "canonical_end_page": 71
+        },
+        {
+          "chapter_id": "supplementary-03",
+          "chapter_title": "कबरी झबरी बकरी",
+          "source_start_page": 5,
+          "source_end_page": 8,
+          "canonical_start_page": 72,
+          "canonical_end_page": 75
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "document_id": "unit-9",
+      "document_type": "unit",
+      "unit_number": 9,
+      "source_filename": "ahsr109.pdf",
+      "source_page_count": 6,
+      "canonical_start_page": 76,
+      "canonical_end_page": 81,
+      "title": "आलू की सड़क",
+      "chapters": [
+        {
+          "chapter_id": "chapter-09",
+          "chapter_title": "आलू की सड़क",
+          "source_start_page": 1,
+          "source_end_page": 6,
+          "canonical_start_page": 76,
+          "canonical_end_page": 81
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "document_id": "unit-10",
+      "document_type": "unit",
+      "unit_number": 10,
+      "source_filename": "ahsr110.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 82,
+      "canonical_end_page": 88,
+      "title": "झूलम-झूली",
+      "chapters": [
+        {
+          "chapter_id": "chapter-10",
+          "chapter_title": "झूलम-झूली",
+          "source_start_page": 1,
+          "source_end_page": 7,
+          "canonical_start_page": 82,
+          "canonical_end_page": 88
+        }
+      ]
+    },
+    {
+      "order": 12,
+      "document_id": "unit-11",
+      "document_type": "unit",
+      "unit_number": 11,
+      "source_filename": "ahsr111.pdf",
+      "source_page_count": 3,
+      "canonical_start_page": 89,
+      "canonical_end_page": 91,
+      "title": "भुट््टे",
+      "chapters": [
+        {
+          "chapter_id": "chapter-11",
+          "chapter_title": "भुट्टे",
+          "source_start_page": 1,
+          "source_end_page": 3,
+          "canonical_start_page": 89,
+          "canonical_end_page": 91
+        }
+      ]
+    },
+    {
+      "order": 13,
+      "document_id": "unit-12",
+      "document_type": "unit",
+      "unit_number": 12,
+      "source_filename": "ahsr112.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 92,
+      "canonical_end_page": 99,
+      "title": "फूली रोटी",
+      "chapters": [
+        {
+          "chapter_id": "chapter-12",
+          "chapter_title": "फूली रोटी",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 92,
+          "canonical_end_page": 99
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "document_id": "unit-13",
+      "document_type": "unit",
+      "unit_number": 13,
+      "source_filename": "ahsr113.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 100,
+      "canonical_end_page": 106,
+      "title": "मेला",
+      "chapters": [
+        {
+          "chapter_id": "chapter-13",
+          "chapter_title": "मेला",
+          "source_start_page": 3,
+          "source_end_page": 7,
+          "canonical_start_page": 102,
+          "canonical_end_page": 106
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "document_id": "unit-14",
+      "document_type": "unit",
+      "unit_number": 14,
+      "source_filename": "ahsr114.pdf",
+      "source_page_count": 2,
+      "canonical_start_page": 107,
+      "canonical_end_page": 108,
+      "title": "बरखा और मेघा",
+      "chapters": [
+        {
+          "chapter_id": "chapter-14",
+          "chapter_title": "बरखा और मेघा",
+          "source_start_page": 1,
+          "source_end_page": 2,
+          "canonical_start_page": 107,
+          "canonical_end_page": 108
+        }
+      ]
+    },
+    {
+      "order": 16,
+      "document_id": "unit-15",
+      "document_type": "unit",
+      "unit_number": 15,
+      "source_filename": "ahsr115.pdf",
+      "source_page_count": 4,
+      "canonical_start_page": 109,
+      "canonical_end_page": 112,
+      "title": "होली",
+      "chapters": [
+        {
+          "chapter_id": "chapter-15",
+          "chapter_title": "होली",
+          "source_start_page": 1,
+          "source_end_page": 4,
+          "canonical_start_page": 109,
+          "canonical_end_page": 112
+        }
+      ]
+    },
+    {
+      "order": 17,
+      "document_id": "unit-16",
+      "document_type": "unit",
+      "unit_number": 16,
+      "source_filename": "ahsr116.pdf",
+      "source_page_count": 3,
+      "canonical_start_page": 113,
+      "canonical_end_page": 115,
+      "title": "जनमदिवस पर पेड़ लगाओ",
+      "chapters": [
+        {
+          "chapter_id": "chapter-16",
+          "chapter_title": "जन्मदिवस पर पेड़ लगाओ",
+          "source_start_page": 1,
+          "source_end_page": 3,
+          "canonical_start_page": 113,
+          "canonical_end_page": 115
+        }
+      ]
+    },
+    {
+      "order": 18,
+      "document_id": "unit-17",
+      "document_type": "unit",
+      "unit_number": 17,
+      "source_filename": "ahsr117.pdf",
+      "source_page_count": 4,
+      "canonical_start_page": 116,
+      "canonical_end_page": 119,
+      "title": "हवा",
+      "chapters": [
+        {
+          "chapter_id": "chapter-17",
+          "chapter_title": "हवा",
+          "source_start_page": 1,
+          "source_end_page": 4,
+          "canonical_start_page": 116,
+          "canonical_end_page": 119
+        }
+      ]
+    },
+    {
+      "order": 19,
+      "document_id": "unit-18",
+      "document_type": "unit",
+      "unit_number": 18,
+      "source_filename": "ahsr118.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 120,
+      "canonical_end_page": 124,
+      "title": "कितनी प्यारी है ये दुनियाया",
+      "chapters": [
+        {
+          "chapter_id": "chapter-18",
+          "chapter_title": "कितनी प्यारी है ये दुनिया",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 120,
+          "canonical_end_page": 124
+        }
+      ]
+    },
+    {
+      "order": 20,
+      "document_id": "unit-19",
+      "document_type": "unit",
+      "unit_number": 19,
+      "source_filename": "ahsr119.pdf",
+      "source_page_count": 12,
+      "canonical_start_page": 125,
+      "canonical_end_page": 136,
+      "title": "चाँद का बच्ा",
+      "chapters": [
+        {
+          "chapter_id": "chapter-19",
+          "chapter_title": "चाँद का बच्चा",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 125,
+          "canonical_end_page": 132
+        },
+        {
+          "chapter_id": "supplementary-04",
+          "chapter_title": "अक्षर गीत",
+          "source_start_page": 9,
+          "source_end_page": 12,
+          "canonical_start_page": 133,
+          "canonical_end_page": 136
+        }
+      ]
+    }
+  ]
+}

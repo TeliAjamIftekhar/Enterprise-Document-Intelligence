@@ -375,6 +375,27 @@ def wait_for_index(
 
 
 def main() -> int:
+    # SAFE_HELP_GUARD
+    if (
+        "-h" in sys.argv[1:]
+        or "--help" in sys.argv[1:]
+    ):
+        print(
+            "usage: create_opensearch_index.py [-h]"
+        )
+        print()
+        print(
+            "Create or reuse the configured "
+            "OpenSearch Serverless textbook index."
+        )
+        print()
+        print("options:")
+        print(
+            "  -h, --help  show this help "
+            "message and exit"
+        )
+        return 0
+
     OUTPUT_DIRECTORY.mkdir(
         parents=True,
         exist_ok=True,

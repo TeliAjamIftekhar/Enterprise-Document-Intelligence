@@ -30,3 +30,14 @@ vectorstore/
 # Test and temporary files
 .pytest_cache/
 *.bak
+
+# Local build and tool environments
+.local-build/
+**/.cache/
+**/.local/
+**/.venv-*/
+
+# Timestamped development backups
+*.before-*
+*.backup
+*.broken-*

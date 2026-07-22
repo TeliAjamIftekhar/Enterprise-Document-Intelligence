@@ -1,0 +1,223 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-1-english-mridang",
+  "book_version": "v1",
+  "title": "Mridang English Textbook for Grade 1",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-I/English-Mridang.zip",
+    "archive_root": null,
+    "supplementary_assets": []
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 136,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 136,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "aemr1ps.pdf",
+      "source_page_count": 14,
+      "canonical_start_page": 1,
+      "canonical_end_page": 14,
+      "title": "Mridang Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "aemr101.pdf",
+      "source_page_count": 14,
+      "canonical_start_page": 15,
+      "canonical_end_page": 28,
+      "title": "My Family and Me",
+      "chapters": [
+        {
+          "chapter_id": "unit-1",
+          "chapter_title": "My Family and Me",
+          "source_start_page": 1,
+          "source_end_page": 14,
+          "canonical_start_page": 15,
+          "canonical_end_page": 28
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "aemr102.pdf",
+      "source_page_count": 32,
+      "canonical_start_page": 29,
+      "canonical_end_page": 60,
+      "title": "Greetings",
+      "chapters": [
+        {
+          "chapter_id": "unit-2",
+          "chapter_title": "Greetings",
+          "source_start_page": 1,
+          "source_end_page": 32,
+          "canonical_start_page": 29,
+          "canonical_end_page": 60
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "aemr103.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 61,
+      "canonical_end_page": 67,
+      "title": "Life Around Us",
+      "chapters": [
+        {
+          "chapter_id": "unit-3",
+          "chapter_title": "Life Around Us",
+          "source_start_page": 1,
+          "source_end_page": 7,
+          "canonical_start_page": 61,
+          "canonical_end_page": 67
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "aemr104.pdf",
+      "source_page_count": 21,
+      "canonical_start_page": 68,
+      "canonical_end_page": 88,
+      "title": "The Cap-seller and the Monkeys",
+      "chapters": [
+        {
+          "chapter_id": "unit-4",
+          "chapter_title": "The Cap-seller and the Monkeys",
+          "source_start_page": 1,
+          "source_end_page": 21,
+          "canonical_start_page": 68,
+          "canonical_end_page": 88
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "aemr105.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 89,
+      "canonical_end_page": 97,
+      "title": "A Farm",
+      "chapters": [
+        {
+          "chapter_id": "unit-5",
+          "chapter_title": "A Farm",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 89,
+          "canonical_end_page": 97
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "aemr106.pdf",
+      "source_page_count": 14,
+      "canonical_start_page": 98,
+      "canonical_end_page": 111,
+      "title": "Food",
+      "chapters": [
+        {
+          "chapter_id": "unit-6",
+          "chapter_title": "Food",
+          "source_start_page": 1,
+          "source_end_page": 14,
+          "canonical_start_page": 98,
+          "canonical_end_page": 111
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "aemr107.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 112,
+      "canonical_end_page": 119,
+      "title": "The Food we Eat",
+      "chapters": [
+        {
+          "chapter_id": "unit-7",
+          "chapter_title": "The Food we Eat",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 112,
+          "canonical_end_page": 119
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "aemr108.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 120,
+      "canonical_end_page": 128,
+      "title": "Seasons",
+      "chapters": [
+        {
+          "chapter_id": "unit-8",
+          "chapter_title": "Seasons",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 120,
+          "canonical_end_page": 128
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "document_id": "unit-9",
+      "document_type": "unit",
+      "unit_number": 9,
+      "source_filename": "aemr109.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 129,
+      "canonical_end_page": 136,
+      "title": "Anandi’s Rainbow",
+      "chapters": [
+        {
+          "chapter_id": "unit-9",
+          "chapter_title": "Anandi’s Rainbow",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 129,
+          "canonical_end_page": 136
+        }
+      ]
+    }
+  ]
+}

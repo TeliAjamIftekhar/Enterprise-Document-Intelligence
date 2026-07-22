@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-9-english-kaveri",
+  "book_version": "v1",
+  "tests": [
+    {
+      "test_id": "indigenous-meaning",
+      "question": "What does indigenous mean and where is this meaning given?",
+      "top_k": 5,
+      "modality": null,
+      "expected_citation_pages": [
+        90
+      ],
+      "required_term_groups": [
+        [
+          "local"
+        ],
+        [
+          "origin"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "ancient-pankhi-evidence",
+      "question": "Where can evidence of ancient pankhi fans be found?",
+      "top_k": 5,
+      "modality": null,
+      "expected_citation_pages": [
+        90
+      ],
+      "required_term_groups": [
+        [
+          "ajanta"
+        ],
+        [
+          "buddhist",
+          "wall painting"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "zardozi-postage-stamp",
+      "question": "What is shown in the Zardozi hand fan postage stamp?",
+      "top_k": 5,
+      "modality": "figure",
+      "expected_citation_pages": [
+        91
+      ],
+      "required_term_groups": [
+        [
+          "zardozi"
+        ],
+        [
+          "rajasthan"
+        ],
+        [
+          "stamp",
+          "postage"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "mirror-work-fans",
+      "question": "Which state makes mirror-work hand fans and what material is used?",
+      "top_k": 10,
+      "modality": null,
+      "expected_citation_pages": [
+        91
+      ],
+      "required_term_groups": [
+        [
+          "gujarat"
+        ],
+        [
+          "mirror"
+        ],
+        [
+          "cotton",
+          "cloth"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "unsupported-outside-textbook",
+      "question": "What is the capital of France?",
+      "top_k": 5,
+      "modality": null,
+      "expected_citation_pages": [],
+      "required_term_groups": [],
+      "expect_insufficient": true
+    }
+  ]
+}

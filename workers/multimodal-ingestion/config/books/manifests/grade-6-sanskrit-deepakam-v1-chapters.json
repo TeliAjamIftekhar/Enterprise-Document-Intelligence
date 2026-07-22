@@ -1,0 +1,370 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-sanskrit-deepakam",
+  "book_version": "v1",
+  "title": "Deepakam Sanskrit Textbook for Grade 6",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-VI/Sanskrit-Deepakam.zip",
+    "archive_root": null,
+    "supplementary_assets": []
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 184,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 184,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "fsde1ps.pdf",
+      "source_page_count": 16,
+      "canonical_start_page": 1,
+      "canonical_end_page": 16,
+      "title": "Deepakam Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "fsde101.pdf",
+      "source_page_count": 24,
+      "canonical_start_page": 17,
+      "canonical_end_page": 40,
+      "title": "प्रथमः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-01",
+          "chapter_title": "प्रथमः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 24,
+          "canonical_start_page": 17,
+          "canonical_end_page": 40
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "fsde102.pdf",
+      "source_page_count": 6,
+      "canonical_start_page": 41,
+      "canonical_end_page": 46,
+      "title": "द्विततीयः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-02",
+          "chapter_title": "द्वितीयः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 6,
+          "canonical_start_page": 41,
+          "canonical_end_page": 46
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "fsde103.pdf",
+      "source_page_count": 16,
+      "canonical_start_page": 47,
+      "canonical_end_page": 62,
+      "title": "तृतीयः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-03",
+          "chapter_title": "तृतीयः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 16,
+          "canonical_start_page": 47,
+          "canonical_end_page": 62
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "fsde104.pdf",
+      "source_page_count": 14,
+      "canonical_start_page": 63,
+      "canonical_end_page": 76,
+      "title": "चतुर्थः पाठःः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-04",
+          "chapter_title": "चतुर्थः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 14,
+          "canonical_start_page": 63,
+          "canonical_end_page": 76
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "fsde105.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 77,
+      "canonical_end_page": 85,
+      "title": "पञ्चमः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-05",
+          "chapter_title": "पञ्चमः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 77,
+          "canonical_end_page": 85
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "fsde106.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 86,
+      "canonical_end_page": 92,
+      "title": "षष्‍ ठः पाठःठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-06",
+          "chapter_title": "षष्ठः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 7,
+          "canonical_start_page": 86,
+          "canonical_end_page": 92
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "fsde107.pdf",
+      "source_page_count": 12,
+      "canonical_start_page": 93,
+      "canonical_end_page": 104,
+      "title": "सप्‍तमः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-07",
+          "chapter_title": "सप्तमः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 12,
+          "canonical_start_page": 93,
+          "canonical_end_page": 104
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "fsde108.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 105,
+      "canonical_end_page": 113,
+      "title": "अष्‍टमः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-08",
+          "chapter_title": "अष्टमः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 105,
+          "canonical_end_page": 113
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "document_id": "unit-9",
+      "document_type": "unit",
+      "unit_number": 9,
+      "source_filename": "fsde109.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 114,
+      "canonical_end_page": 121,
+      "title": "नवमः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-09",
+          "chapter_title": "नवमः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 114,
+          "canonical_end_page": 121
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "document_id": "unit-10",
+      "document_type": "unit",
+      "unit_number": 10,
+      "source_filename": "fsde110.pdf",
+      "source_page_count": 6,
+      "canonical_start_page": 122,
+      "canonical_end_page": 127,
+      "title": "दशमः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-10",
+          "chapter_title": "दशमः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 6,
+          "canonical_start_page": 122,
+          "canonical_end_page": 127
+        }
+      ]
+    },
+    {
+      "order": 12,
+      "document_id": "unit-11",
+      "document_type": "unit",
+      "unit_number": 11,
+      "source_filename": "fsde111.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 128,
+      "canonical_end_page": 136,
+      "title": "एकादशः पाठठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-11",
+          "chapter_title": "एकादशः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 128,
+          "canonical_end_page": 136
+        }
+      ]
+    },
+    {
+      "order": 13,
+      "document_id": "unit-12",
+      "document_type": "unit",
+      "unit_number": 12,
+      "source_filename": "fsde112.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 137,
+      "canonical_end_page": 145,
+      "title": "द्वाादशः पााठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-12",
+          "chapter_title": "द्वादशः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 137,
+          "canonical_end_page": 145
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "document_id": "unit-13",
+      "document_type": "unit",
+      "unit_number": 13,
+      "source_filename": "fsde113.pdf",
+      "source_page_count": 11,
+      "canonical_start_page": 146,
+      "canonical_end_page": 156,
+      "title": "त्रयोदशः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-13",
+          "chapter_title": "त्रयोदशः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 11,
+          "canonical_start_page": 146,
+          "canonical_end_page": 156
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "document_id": "unit-14",
+      "document_type": "unit",
+      "unit_number": 14,
+      "source_filename": "fsde114.pdf",
+      "source_page_count": 11,
+      "canonical_start_page": 157,
+      "canonical_end_page": 167,
+      "title": "चतुर्दशः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-14",
+          "chapter_title": "चतुर्दशः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 11,
+          "canonical_start_page": 157,
+          "canonical_end_page": 167
+        }
+      ]
+    },
+    {
+      "order": 16,
+      "document_id": "unit-15",
+      "document_type": "unit",
+      "unit_number": 15,
+      "source_filename": "fsde115.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 168,
+      "canonical_end_page": 175,
+      "title": "पञ्चदशः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-15",
+          "chapter_title": "पञ्चदशः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 168,
+          "canonical_end_page": 175
+        }
+      ]
+    },
+    {
+      "order": 17,
+      "document_id": "unit-16",
+      "document_type": "unit",
+      "unit_number": 16,
+      "source_filename": "fsde116.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 176,
+      "canonical_end_page": 184,
+      "title": "षोडशः पाठः",
+      "chapters": [
+        {
+          "chapter_id": "chapter-16",
+          "chapter_title": "षोडशः पाठः",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 176,
+          "canonical_end_page": 184
+        }
+      ]
+    }
+  ]
+}

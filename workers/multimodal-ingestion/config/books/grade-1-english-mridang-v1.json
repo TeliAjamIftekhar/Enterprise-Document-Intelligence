@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "book": {
+    "book_id": "grade-1-english-mridang",
+    "title": "Mridang English Textbook for Grade 1",
+    "grade": 1,
+    "subject": "english",
+    "language": "english",
+    "board": "ncert",
+    "version": "v1",
+    "page_count": 136,
+    "academic_year": null,
+    "status": "draft"
+  },
+  "aws": {
+    "region": "us-east-1",
+    "bucket": "edi-documents-ajam-2026"
+  },
+  "bda": {
+    "project_arn": "arn:aws:bedrock:us-east-1:334590195171:data-automation-project/1894a0411c15",
+    "profile_arn": "arn:aws:bedrock:us-east-1:334590195171:data-automation-profile/us.data-automation-v1",
+    "stage": "DEVELOPMENT"
+  },
+  "opensearch": {
+    "collection_endpoint": "https://kqjqddn0b5gmcfvgsd2e.aoss.us-east-1.on.aws",
+    "index_name": "grade-1-english-mridang-v1",
+    "vector_field": "embedding"
+  },
+  "source": {
+    "mode": "chapter_folder",
+    "chapter_directory": "data/source-archives/grade-1-english-mridang/v1/extracted",
+    "chapter_order": "manifest",
+    "chapter_manifest": "workers/multimodal-ingestion/config/books/manifests/grade-1-english-mridang-v1-chapters.json",
+    "merged_pdf_name": "textbook.pdf"
+  },
+  "storage": {
+    "source_s3_key": "source-documents/grade-1/grade-1-english-mridang/versions/v1/textbook.pdf",
+    "derived_prefix": "derived-artifacts/grade-1/grade-1-english-mridang/v1",
+    "bda_input_prefix": "bda-input/grade-1/grade-1-english-mridang/v1",
+    "local_root": "data/multimodal-output/grade-1-english-mridang/v1"
+  },
+  "models": {
+    "embedding": {
+      "model_id": "amazon.titan-embed-text-v2:0",
+      "dimensions": 1024,
+      "normalize": true
+    },
+    "generation": {
+      "model_id": "amazon.nova-lite-v1:0",
+      "maximum_output_tokens": 700,
+      "temperature": 0.0
+    }
+  },
+  "processing": {
+    "page_batch_size": 20,
+    "minimum_text_similarity": 0.999,
+    "embedding_checkpoint_interval": 10
+  },
+  "retrieval": {
+    "vector_candidate_limit": 20,
+    "bm25_candidate_limit": 20,
+    "result_limit": 5,
+    "rrf_constant": 60,
+    "vector_weight": 6.0,
+    "bm25_weight": 1.0
+  }
+}

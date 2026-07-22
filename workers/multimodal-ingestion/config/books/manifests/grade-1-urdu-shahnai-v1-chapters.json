@@ -1,0 +1,412 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-1-urdu-shahnai",
+  "book_version": "v1",
+  "title": "Shahnai Urdu Textbook for Grade 1",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-I/Urdu-Shahnai.zip",
+    "archive_root": null,
+    "supplementary_assets": []
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 120,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 120,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "aush1ps.pdf",
+      "source_page_count": 14,
+      "canonical_start_page": 1,
+      "canonical_end_page": 14,
+      "title": "Shahnai Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "aush101.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 15,
+      "canonical_end_page": 21,
+      "title": "Shahnai Unit 1",
+      "chapters": [
+        {
+          "chapter_id": "unit-1",
+          "chapter_title": "Shahnai Unit 1",
+          "source_start_page": 1,
+          "source_end_page": 7,
+          "canonical_start_page": 15,
+          "canonical_end_page": 21
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "aush102.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 22,
+      "canonical_end_page": 28,
+      "title": "Shahnai Unit 2",
+      "chapters": [
+        {
+          "chapter_id": "unit-2",
+          "chapter_title": "Shahnai Unit 2",
+          "source_start_page": 1,
+          "source_end_page": 7,
+          "canonical_start_page": 22,
+          "canonical_end_page": 28
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "aush103.pdf",
+      "source_page_count": 6,
+      "canonical_start_page": 29,
+      "canonical_end_page": 34,
+      "title": "Shahnai Unit 3",
+      "chapters": [
+        {
+          "chapter_id": "unit-3",
+          "chapter_title": "Shahnai Unit 3",
+          "source_start_page": 1,
+          "source_end_page": 6,
+          "canonical_start_page": 29,
+          "canonical_end_page": 34
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "aush104.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 35,
+      "canonical_end_page": 39,
+      "title": "Shahnai Unit 4",
+      "chapters": [
+        {
+          "chapter_id": "unit-4",
+          "chapter_title": "Shahnai Unit 4",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 35,
+          "canonical_end_page": 39
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "aush105.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 40,
+      "canonical_end_page": 44,
+      "title": "Shahnai Unit 5",
+      "chapters": [
+        {
+          "chapter_id": "unit-5",
+          "chapter_title": "Shahnai Unit 5",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 40,
+          "canonical_end_page": 44
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "aush106.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 45,
+      "canonical_end_page": 53,
+      "title": "Shahnai Unit 6",
+      "chapters": [
+        {
+          "chapter_id": "unit-6",
+          "chapter_title": "Shahnai Unit 6",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 45,
+          "canonical_end_page": 53
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "aush107.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 54,
+      "canonical_end_page": 60,
+      "title": "Shahnai Unit 7",
+      "chapters": [
+        {
+          "chapter_id": "unit-7",
+          "chapter_title": "Shahnai Unit 7",
+          "source_start_page": 1,
+          "source_end_page": 7,
+          "canonical_start_page": 54,
+          "canonical_end_page": 60
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "aush108.pdf",
+      "source_page_count": 7,
+      "canonical_start_page": 61,
+      "canonical_end_page": 67,
+      "title": "Shahnai Unit 8",
+      "chapters": [
+        {
+          "chapter_id": "unit-8",
+          "chapter_title": "Shahnai Unit 8",
+          "source_start_page": 1,
+          "source_end_page": 7,
+          "canonical_start_page": 61,
+          "canonical_end_page": 67
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "document_id": "unit-9",
+      "document_type": "unit",
+      "unit_number": 9,
+      "source_filename": "aush109.pdf",
+      "source_page_count": 14,
+      "canonical_start_page": 68,
+      "canonical_end_page": 81,
+      "title": "Shahnai Unit 9",
+      "chapters": [
+        {
+          "chapter_id": "unit-9",
+          "chapter_title": "Shahnai Unit 9",
+          "source_start_page": 1,
+          "source_end_page": 14,
+          "canonical_start_page": 68,
+          "canonical_end_page": 81
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "document_id": "unit-10",
+      "document_type": "unit",
+      "unit_number": 10,
+      "source_filename": "aush110.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 82,
+      "canonical_end_page": 89,
+      "title": "Shahnai Unit 10",
+      "chapters": [
+        {
+          "chapter_id": "unit-10",
+          "chapter_title": "Shahnai Unit 10",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 82,
+          "canonical_end_page": 89
+        }
+      ]
+    },
+    {
+      "order": 12,
+      "document_id": "unit-11",
+      "document_type": "unit",
+      "unit_number": 11,
+      "source_filename": "aush111.pdf",
+      "source_page_count": 4,
+      "canonical_start_page": 90,
+      "canonical_end_page": 93,
+      "title": "Shahnai Unit 11",
+      "chapters": [
+        {
+          "chapter_id": "unit-11",
+          "chapter_title": "Shahnai Unit 11",
+          "source_start_page": 1,
+          "source_end_page": 4,
+          "canonical_start_page": 90,
+          "canonical_end_page": 93
+        }
+      ]
+    },
+    {
+      "order": 13,
+      "document_id": "unit-12",
+      "document_type": "unit",
+      "unit_number": 12,
+      "source_filename": "aush112.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 94,
+      "canonical_end_page": 98,
+      "title": "Shahnai Unit 12",
+      "chapters": [
+        {
+          "chapter_id": "unit-12",
+          "chapter_title": "Shahnai Unit 12",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 94,
+          "canonical_end_page": 98
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "document_id": "unit-13",
+      "document_type": "unit",
+      "unit_number": 13,
+      "source_filename": "aush113.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 99,
+      "canonical_end_page": 103,
+      "title": "Shahnai Unit 13",
+      "chapters": [
+        {
+          "chapter_id": "unit-13",
+          "chapter_title": "Shahnai Unit 13",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 99,
+          "canonical_end_page": 103
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "document_id": "unit-14",
+      "document_type": "unit",
+      "unit_number": 14,
+      "source_filename": "aush114.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 104,
+      "canonical_end_page": 108,
+      "title": "Shahnai Unit 14",
+      "chapters": [
+        {
+          "chapter_id": "unit-14",
+          "chapter_title": "Shahnai Unit 14",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 104,
+          "canonical_end_page": 108
+        }
+      ]
+    },
+    {
+      "order": 16,
+      "document_id": "unit-15",
+      "document_type": "unit",
+      "unit_number": 15,
+      "source_filename": "aush115.pdf",
+      "source_page_count": 5,
+      "canonical_start_page": 109,
+      "canonical_end_page": 113,
+      "title": "Shahnai Unit 15",
+      "chapters": [
+        {
+          "chapter_id": "unit-15",
+          "chapter_title": "Shahnai Unit 15",
+          "source_start_page": 1,
+          "source_end_page": 5,
+          "canonical_start_page": 109,
+          "canonical_end_page": 113
+        }
+      ]
+    },
+    {
+      "order": 17,
+      "document_id": "unit-16",
+      "document_type": "unit",
+      "unit_number": 16,
+      "source_filename": "aush116.pdf",
+      "source_page_count": 2,
+      "canonical_start_page": 114,
+      "canonical_end_page": 115,
+      "title": "Shahnai Unit 16",
+      "chapters": [
+        {
+          "chapter_id": "unit-16",
+          "chapter_title": "Shahnai Unit 16",
+          "source_start_page": 1,
+          "source_end_page": 2,
+          "canonical_start_page": 114,
+          "canonical_end_page": 115
+        }
+      ]
+    },
+    {
+      "order": 18,
+      "document_id": "unit-17",
+      "document_type": "unit",
+      "unit_number": 17,
+      "source_filename": "aush117.pdf",
+      "source_page_count": 1,
+      "canonical_start_page": 116,
+      "canonical_end_page": 116,
+      "title": "Shahnai Unit 17",
+      "chapters": [
+        {
+          "chapter_id": "unit-17",
+          "chapter_title": "Shahnai Unit 17",
+          "source_start_page": 1,
+          "source_end_page": 1,
+          "canonical_start_page": 116,
+          "canonical_end_page": 116
+        }
+      ]
+    },
+    {
+      "order": 19,
+      "document_id": "unit-18",
+      "document_type": "unit",
+      "unit_number": 18,
+      "source_filename": "aush118.pdf",
+      "source_page_count": 4,
+      "canonical_start_page": 117,
+      "canonical_end_page": 120,
+      "title": "Shahnai Unit 18",
+      "chapters": [
+        {
+          "chapter_id": "unit-18",
+          "chapter_title": "Shahnai Unit 18",
+          "source_start_page": 1,
+          "source_end_page": 4,
+          "canonical_start_page": 117,
+          "canonical_end_page": 120
+        }
+      ]
+    }
+  ]
+}

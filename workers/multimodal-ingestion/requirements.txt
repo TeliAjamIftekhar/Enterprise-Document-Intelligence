@@ -7,3 +7,4 @@ Pillow
 python-dotenv
 tenacity
 pytest
+opensearch-py==3.2.0
