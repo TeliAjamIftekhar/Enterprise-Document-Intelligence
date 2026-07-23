@@ -670,6 +670,7 @@ def main(
         ),
         expected_pages=expected_pages,
         input_dir=paths.input_dir,
+        canonical_pdf_path=pdf_path,
     )
 
     artifacts = write_fallback_artifacts(

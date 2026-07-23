@@ -3,6 +3,7 @@ from pathlib import Path
 
 import fitz
 import pytest
+from PIL import Image
 
 from src.surya_ocr_fallback import (
     SuryaRuntimeConfig,
@@ -489,3 +490,329 @@ def test_unapproved_pilot_record_is_rejected(
         load_approval_record(
             approval_path
         )
+
+
+
+def test_empty_surya_result_recovers_canonical_pdf_text(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "textbook.pdf"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text(
+        (72, 72),
+        (
+            "This canonical textbook page contains "
+            "valid lesson content for students."
+        ),
+    )
+    document.save(pdf_path)
+    document.close()
+
+    results_path = tmp_path / "results.json"
+    results_path.write_text(
+        json.dumps(
+            {
+                "page-0001": [
+                    {
+                        "html": "",
+                        "confidence": 0.98,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = parse_surya_results(
+        results_path,
+        expected_language="English",
+        expected_pages=[1],
+        canonical_pdf_path=pdf_path,
+    )
+
+    page_result = report.pages[0]
+
+    assert report.classification == "PASS"
+    assert (
+        "canonical textbook page"
+        in page_result.clean_text
+    )
+    assert (
+        "canonical_pdf_text_recovered"
+        in page_result.decision.reasons
+    )
+
+
+def test_extremely_blank_decorative_page_is_accepted(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+
+    Image.new(
+        "RGB",
+        (300, 400),
+        "white",
+    ).save(
+        input_dir / "page-0001.png"
+    )
+
+    results_path = tmp_path / "results.json"
+    results_path.write_text(
+        json.dumps(
+            {
+                "page-0001": [
+                    {
+                        "html": (
+                            "<p>Reprint 2026-27</p>"
+                        ),
+                        "confidence": 0.99,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = parse_surya_results(
+        results_path,
+        expected_language="Sanskrit",
+        expected_pages=[1],
+        input_dir=input_dir,
+    )
+
+    assert report.classification == "PASS"
+    assert (
+        report.pages[0].decision.reasons
+        == (
+            "visually_blank_or_decorative_page_accepted",
+        )
+    )
+
+
+def test_latex_control_words_do_not_fail_sanskrit(
+    tmp_path: Path,
+) -> None:
+    results_path = tmp_path / "results.json"
+
+    formulas = (
+        "\\text{क्ष} = \\boxed{\\text{क्}} + "
+        "\\boxed{\\text{ष्}} + \\boxed{\\text{अ}}",
+        "\\text{कक्षा} = \\boxed{\\text{क्}} + "
+        "\\boxed{\\text{अ}} + \\boxed{\\text{क्ष}}",
+        "\\text{त्र} = \\boxed{\\text{त्}} + "
+        "\\boxed{\\text{र्}} + \\boxed{\\text{अ}}",
+        "\\text{पत्रम्} = \\boxed{\\text{प्}} + "
+        "\\boxed{\\text{त्र}} + \\boxed{\\text{म्}}",
+        "\\text{ज्ञ} = \\boxed{\\text{ज्}} + "
+        "\\boxed{\\text{ञ्}} + \\boxed{\\text{अ}}",
+        "\\text{ज्ञानम्} = \\boxed{\\text{ज्ञ}} + "
+        "\\boxed{\\text{आ}} + \\boxed{\\text{नम्}}",
+        "\\text{द्य} = \\boxed{\\text{द्}} + "
+        "\\boxed{\\text{य्}} + \\boxed{\\text{अ}}",
+        "\\text{विद्या} = \\boxed{\\text{वि}} + "
+        "\\boxed{\\text{द्या}}",
+        "\\text{श्र} = \\boxed{\\text{श्}} + "
+        "\\boxed{\\text{र्}} + \\boxed{\\text{अ}}",
+        "\\text{श्रमः} = \\boxed{\\text{श्र}} + "
+        "\\boxed{\\text{मः}}",
+    )
+
+    results_path.write_text(
+        json.dumps(
+            {
+                "page-0001": [
+                    {
+                        "html": (
+                            "<p>"
+                            "संयुक्त व्यञ्जनानि विद्यार्थिनः "
+                            "ध्यानपूर्वक पठन्तु।"
+                            "</p><p>"
+                            + " ".join(formulas)
+                            + "</p>"
+                        ),
+                        "confidence": 0.97,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    report = parse_surya_results(
+        results_path,
+        expected_language="Sanskrit",
+        expected_pages=[1],
+    )
+
+    assert report.classification == "PASS"
+    assert (
+        "latex_control_words_ignored_for_validation"
+        in report.pages[0].decision.reasons
+    )
+
+
+def test_structured_table_duplicate_label_is_accepted(
+    tmp_path: Path,
+) -> None:
+    results_path = tmp_path / "results.json"
+
+    repeated_rows = "".join(
+        (
+            "<tr><td>"
+            "द्वितीया विभक्तिः"
+            "</td></tr>"
+        )
+        for _ in range(5)
+    )
+
+    results_path.write_text(
+        json.dumps(
+            {
+                "page-0001": [
+                    {
+                        "html": (
+                            "<p>"
+                            "एतानि शब्दरूपाणि पठन्तु "
+                            "अवगच्छन्तु स्मरन्तु च।"
+                            "</p><table>"
+                            + repeated_rows
+                            + "".join(
+                                (
+                                    "<tr><td>"
+                                    f"शब्दरूपम् {index}"
+                                    "</td></tr>"
+                                )
+                                for index in range(20)
+                            )
+                            + "</table>"
+                        ),
+                        "confidence": 0.98,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    report = parse_surya_results(
+        results_path,
+        expected_language="Sanskrit",
+        expected_pages=[1],
+    )
+
+    assert report.classification == "PASS"
+    assert (
+        report.pages[0].decision.reasons
+        == (
+            "structured_table_duplicate_label_accepted",
+        )
+    )
+
+
+def test_structured_workbook_repetition_is_accepted(
+    tmp_path: Path,
+) -> None:
+    results_path = tmp_path / "results.json"
+
+    repeated_instruction = (
+        "अभ्यास प्रश्न उत्तर लिखें ..... "
+    )
+
+    results_path.write_text(
+        json.dumps(
+            {
+                "page-0001": [
+                    {
+                        "html": (
+                            "<p>"
+                            "वर्ण वियोग अभ्यासः"
+                            "</p><table><tr><td>"
+                            + repeated_instruction * 10
+                            + "</td></tr>"
+                            + "".join(
+                                (
+                                    "<tr><td>"
+                                    f"रामः = ..... + ..... {index}"
+                                    "</td></tr>"
+                                )
+                                for index in range(20)
+                            )
+                            + "</table>"
+                        ),
+                        "confidence": 0.97,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    report = parse_surya_results(
+        results_path,
+        expected_language="Sanskrit",
+        expected_pages=[1],
+    )
+
+    assert report.classification == "PASS"
+    assert (
+        report.pages[0].decision.reasons
+        == (
+            "structured_workbook_repetition_accepted",
+        )
+    )
+
+
+
+def test_blank_image_does_not_accept_hallucinated_repetition(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+
+    Image.new(
+        "RGB",
+        (300, 400),
+        "white",
+    ).save(
+        input_dir / "page-0001.png"
+    )
+
+    repeated = (
+        "विद्यार्थी दिए गए अभ्यास को ध्यान से "
+        "पढ़कर उत्तर लिखेंगे। "
+    ) * 10
+
+    results_path = tmp_path / "results.json"
+    results_path.write_text(
+        json.dumps(
+            {
+                "page-0001": [
+                    {
+                        "html": f"<p>{repeated}</p>",
+                        "confidence": 0.99,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    report = parse_surya_results(
+        results_path,
+        expected_language="Sanskrit",
+        expected_pages=[1],
+        input_dir=input_dir,
+    )
+
+    assert report.classification == "FAIL"
+    assert report.accepted_for_pipeline is False
+    assert (
+        "runaway_phrase_repetition"
+        in report.pages[0].decision.reasons
+    )

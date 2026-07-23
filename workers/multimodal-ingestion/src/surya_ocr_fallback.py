@@ -16,13 +16,16 @@ page assets.
 
 from __future__ import annotations
 
+import fitz
 import json
 import os
 import re
 import statistics
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Iterable, Literal, Mapping, Sequence
+
+from PIL import Image, ImageOps, ImageStat
 
 from src.ocr_quality import (
     OCRQualityDecision,
@@ -566,12 +569,140 @@ def _walk_surya_payload(
             )
 
 
+
+def _canonical_pdf_page_text(
+    canonical_pdf_path: Path | None,
+    canonical_page: int,
+) -> str:
+    """Extract persisted PDF text for narrow Surya recovery."""
+
+    if (
+        canonical_pdf_path is None
+        or not canonical_pdf_path.is_file()
+        or canonical_page <= 0
+    ):
+        return ""
+
+    try:
+        with fitz.open(canonical_pdf_path) as document:
+            if canonical_page > document.page_count:
+                return ""
+
+            return clean_ocr_text(
+                document[
+                    canonical_page - 1
+                ].get_text("text")
+            )
+    except (OSError, RuntimeError, ValueError):
+        return ""
+
+
+def _is_visually_blank_or_decorative_page(
+    source_image: Path | None,
+) -> bool:
+    """Recognise only extremely blank rendered pages."""
+
+    if (
+        source_image is None
+        or not source_image.is_file()
+    ):
+        return False
+
+    try:
+        with Image.open(source_image) as image:
+            gray = ImageOps.grayscale(image)
+            histogram = gray.histogram()
+            total_pixels = gray.width * gray.height
+
+            if total_pixels <= 0:
+                return False
+
+            near_white_ratio = (
+                sum(histogram[245:256])
+                / total_pixels
+            )
+
+            dark_ratio = (
+                sum(histogram[0:81])
+                / total_pixels
+            )
+
+            brightness_stddev = (
+                ImageStat.Stat(gray).stddev[0]
+            )
+
+            return (
+                near_white_ratio >= 0.97
+                and dark_ratio <= 0.001
+                and brightness_stddev <= 12.0
+            )
+    except (OSError, ValueError):
+        return False
+
+
+def _latex_validation_text(text: str) -> str:
+    """Remove LaTeX control words, retaining textbook content."""
+
+    return clean_ocr_text(
+        re.sub(
+            r"\\[A-Za-z]+(?:\*)?",
+            " ",
+            text,
+        )
+    )
+
+
+def _is_structured_table_duplicate_label(
+    raw_html: str,
+    decision: OCRQualityDecision,
+) -> bool:
+    """Recognise repeated table headers, not prose hallucination."""
+
+    metrics = decision.metrics
+
+    return (
+        "<table" in raw_html.casefold()
+        and decision.reasons
+        == ("runaway_duplicate_lines",)
+        and metrics.confidence is not None
+        and metrics.confidence >= 0.90
+        and metrics.expected_script_characters >= 40
+        and metrics.script_only_expected_ratio >= 0.90
+        and metrics.line_count >= 20
+        and metrics.max_duplicate_line_count == 5
+        and metrics.max_repeated_phrase_count < 5
+    )
+
+
+def _is_structured_workbook_repetition(
+    raw_html: str,
+    clean_text: str,
+    decision: OCRQualityDecision,
+) -> bool:
+    """Recognise placeholder repetition in structured worksheets."""
+
+    metrics = decision.metrics
+
+    return (
+        "<table" in raw_html.casefold()
+        and decision.reasons
+        == ("runaway_phrase_repetition",)
+        and metrics.confidence is not None
+        and metrics.confidence >= 0.90
+        and metrics.expected_script_characters >= 40
+        and metrics.script_only_expected_ratio >= 0.70
+        and metrics.line_count >= 20
+        and clean_text.count(".....") >= 5
+    )
+
+
 def parse_surya_page(
     page_key: str,
     payload: Any,
     *,
     expected_language: str,
     input_dir: Path | None = None,
+    canonical_pdf_path: Path | None = None,
     thresholds: OCRQualityThresholds | None = None,
 ) -> SuryaPageResult:
     """Parse and validate one Surya page payload."""
@@ -626,6 +757,135 @@ def parse_surya_page(
         thresholds=thresholds,
     )
 
+    recoverable_reasons = {
+        "empty_or_nearly_empty_text",
+        "expected_script_not_detected",
+    }
+
+    if (
+        decision.classification != "PASS"
+        and recoverable_reasons.intersection(
+            decision.reasons
+        )
+    ):
+        canonical_text = _canonical_pdf_page_text(
+            canonical_pdf_path,
+            canonical_page,
+        )
+
+        if canonical_text:
+            canonical_decision = evaluate_ocr_text(
+                canonical_text,
+                expected_language=expected_language,
+                source="canonical_pdf",
+                thresholds=thresholds,
+            )
+
+            if canonical_decision.classification == "PASS":
+                clean_text = canonical_text
+                decision = replace(
+                    canonical_decision,
+                    reasons=(
+                        "canonical_pdf_text_recovered",
+                        *canonical_decision.reasons,
+                    ),
+                )
+
+    if (
+        decision.classification != "PASS"
+        and re.search(
+            r"\\[A-Za-z]+(?:\*)?",
+            clean_text,
+        )
+    ):
+        validation_text = _latex_validation_text(
+            clean_text
+        )
+
+        latex_decision = evaluate_ocr_text(
+            validation_text,
+            expected_language=expected_language,
+            source="surya",
+            confidence=confidence,
+            thresholds=thresholds,
+        )
+
+        if latex_decision.classification == "PASS":
+            decision = replace(
+                latex_decision,
+                source="surya",
+                reasons=(
+                    "latex_control_words_ignored_for_validation",
+                    *latex_decision.reasons,
+                ),
+                clean_text=clean_text,
+            )
+
+    if (
+        decision.classification != "PASS"
+        and _is_structured_table_duplicate_label(
+            raw_html,
+            decision,
+        )
+    ):
+        decision = replace(
+            decision,
+            classification="PASS",
+            accepted=True,
+            fallback_recommended=False,
+            reasons=(
+                "structured_table_duplicate_label_accepted",
+            ),
+        )
+
+    if (
+        decision.classification != "PASS"
+        and _is_structured_workbook_repetition(
+            raw_html,
+            clean_text,
+            decision,
+        )
+    ):
+        decision = replace(
+            decision,
+            classification="PASS",
+            accepted=True,
+            fallback_recommended=False,
+            sparse_page=True,
+            reasons=(
+                "structured_workbook_repetition_accepted",
+            ),
+        )
+
+    blank_page_reasons = {
+        "empty_or_nearly_empty_text",
+        "expected_script_not_detected",
+        "insufficient_expected_script_characters",
+    }
+
+    if (
+        decision.classification != "PASS"
+        and set(decision.reasons).issubset(
+            blank_page_reasons
+        )
+        and decision.metrics.nonspace_characters <= 40
+        and decision.metrics.max_duplicate_line_count < 5
+        and decision.metrics.max_repeated_phrase_count < 5
+        and _is_visually_blank_or_decorative_page(
+            source_image
+        )
+    ):
+        decision = replace(
+            decision,
+            classification="PASS",
+            accepted=True,
+            fallback_recommended=False,
+            sparse_page=True,
+            reasons=(
+                "visually_blank_or_decorative_page_accepted",
+            ),
+        )
+
     return SuryaPageResult(
         page_key=page_key,
         canonical_page=canonical_page,
@@ -643,6 +903,7 @@ def parse_surya_results(
     expected_language: str,
     expected_pages: Sequence[int] | None = None,
     input_dir: Path | None = None,
+    canonical_pdf_path: Path | None = None,
     thresholds: OCRQualityThresholds | None = None,
 ) -> SuryaFallbackReport:
     """Parse all pages and create a batch-level decision."""
@@ -673,6 +934,9 @@ def parse_surya_results(
                         expected_language
                     ),
                     input_dir=input_dir,
+                    canonical_pdf_path=(
+                        canonical_pdf_path
+                    ),
                     thresholds=thresholds,
                 )
                 for page_key, page_payload
