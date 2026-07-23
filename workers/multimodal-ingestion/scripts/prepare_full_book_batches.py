@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -513,13 +514,36 @@ def create_batch_pdf(
     if temporary_path.exists():
         temporary_path.unlink()
 
-    batch_document = fitz.open()
+    source_path = Path(
+        str(source_document.name)
+    )
 
-    try:
-        batch_document.insert_pdf(
-            source_document,
-            from_page=source_start_index,
-            to_page=source_end_index,
+    if not source_path.is_file():
+        raise RuntimeError(
+            "Pixel-preserving batch creation "
+            "requires a file-backed source PDF: "
+            f"{source_path}"
+        )
+
+    # Copy the canonical PDF first, then update only
+    # its page tree. This preserves the original page
+    # resources and rendering that insert_pdf() can
+    # rewrite for some multilingual NCERT PDFs.
+    shutil.copy2(
+        source_path,
+        temporary_path,
+    )
+
+    with fitz.open(
+        str(temporary_path)
+    ) as batch_document:
+        batch_document.select(
+            list(
+                range(
+                    source_start_index,
+                    source_end_index + 1,
+                )
+            )
         )
 
         batch_document.set_metadata(
@@ -546,17 +570,7 @@ def create_batch_pdf(
             }
         )
 
-        # Avoid aggressive PDF cleanup because it can
-        # unnecessarily rewrite page resources.
-        batch_document.save(
-            str(temporary_path),
-            garbage=0,
-            deflate=False,
-            clean=False,
-        )
-
-    finally:
-        batch_document.close()
+        batch_document.saveIncr()
 
     expected_page_count = (
         source_end_index
@@ -657,6 +671,10 @@ def create_batch_pdf(
                 "failed_pages"
             ]
         ]
+
+        temporary_path.unlink(
+            missing_ok=True
+        )
 
         raise RuntimeError(
             f"{batch_id} fidelity verification "
