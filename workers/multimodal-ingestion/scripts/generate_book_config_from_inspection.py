@@ -1118,6 +1118,49 @@ def infer_document_title(
     }
 
 
+def apply_resolved_chapter_title(
+    inferred: dict[str, Any],
+    chapters: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Use a reviewed title for one-chapter PDFs.
+
+    Multiple approved chapters do not automatically
+    become a single document title. In that case the
+    inferred title and its review status are retained.
+    """
+    approved_titles: list[str] = []
+
+    for chapter in chapters:
+        title = normalize_line(
+            str(
+                chapter.get(
+                    "chapter_title",
+                    "",
+                )
+            )
+        )
+
+        if (
+            title
+            and title not in approved_titles
+        ):
+            approved_titles.append(title)
+
+    if len(approved_titles) != 1:
+        return inferred
+
+    approved_title = approved_titles[0]
+
+    return {
+        "title": approved_title,
+        "confidence": "high",
+        "source": (
+            "resolved-chapter-structure"
+        ),
+        "candidates": [approved_title],
+    }
+
+
 def is_front_matter(
     source_filename: str,
     order: int,
@@ -1868,6 +1911,13 @@ def main() -> int:
                                 f"{source_filename} / "
                                 f"{chapter}"
                             )
+
+                    inferred = (
+                        apply_resolved_chapter_title(
+                            inferred,
+                            chapters,
+                        )
+                    )
 
                 else:
                     chapters = [{

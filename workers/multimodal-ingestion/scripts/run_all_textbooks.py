@@ -33,6 +33,11 @@ CONFIG_ROOT = Path(
 
 MANIFEST_ROOT = CONFIG_ROOT / "manifests"
 
+CHAPTER_STRUCTURE_ROOT = Path(
+    "workers/multimodal-ingestion/config/"
+    "chapter-structures"
+)
+
 SCRIPTS_ROOT = Path(
     "workers/multimodal-ingestion/scripts"
 )
@@ -47,6 +52,34 @@ SURYA_APPROVAL_DEFAULT = (
     OCR_APPROVAL_ROOT
     / "surya-urdu-v1.json"
 )
+
+
+def chapter_structure_path_for_book(
+    book_id: str,
+    version: str,
+) -> Path:
+    """Return the tracked reviewed chapter structure."""
+
+    return (
+        CHAPTER_STRUCTURE_ROOT
+        / f"{book_id}-{version}.json"
+    )
+
+
+def append_chapter_structure_argument(
+    command: list[str],
+    chapter_structure_path: Path,
+) -> list[str]:
+    """Add a reviewed structure when one is available."""
+
+    if not chapter_structure_path.is_file():
+        return command
+
+    return [
+        *command,
+        "--chapter-structure",
+        str(chapter_structure_path),
+    ]
 
 
 def ocr_approval_path_for_book(
@@ -247,6 +280,12 @@ def paths_for_book(
             / (
                 f"{book_id}-{version}"
                 "-chapters.json"
+            )
+        ),
+        "chapter_structure": (
+            chapter_structure_path_for_book(
+                book_id,
+                version,
             )
         ),
         "generation_report": (
@@ -2267,6 +2306,13 @@ def process_book(
             version,
             "--write",
         ]
+
+        command = (
+            append_chapter_structure_argument(
+                command,
+                paths["chapter_structure"],
+            )
+        )
 
         if any(
             path.exists()

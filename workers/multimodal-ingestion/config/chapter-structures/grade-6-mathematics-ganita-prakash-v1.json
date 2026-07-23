@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "status": "READY",
+  "book_id": "grade-6-mathematics-ganita-prakash",
+  "book_version": "v1",
+  "generated_at": "2026-07-23T14:21:16.051877+00:00",
+  "verification_method": "human_verified_from_pdf_opening_headings",
+  "source_manifest": "workers/multimodal-ingestion/config/books/manifests/grade-6-mathematics-ganita-prakash-v1-chapters.json",
+  "chapter_count": 10,
+  "chapters": [
+    {
+      "chapter_id": "unit-1",
+      "chapter_title": "Patterns in Mathematics",
+      "source_filename": "fegp101.pdf",
+      "source_start_page": 1,
+      "source_end_page": 17,
+      "canonical_start_page": 21,
+      "canonical_end_page": 37
+    },
+    {
+      "chapter_id": "unit-2",
+      "chapter_title": "Lines and Angles",
+      "source_filename": "fegp102.pdf",
+      "source_start_page": 1,
+      "source_end_page": 53,
+      "canonical_start_page": 38,
+      "canonical_end_page": 90
+    },
+    {
+      "chapter_id": "unit-3",
+      "chapter_title": "Number Play",
+      "source_filename": "fegp103.pdf",
+      "source_start_page": 1,
+      "source_end_page": 32,
+      "canonical_start_page": 91,
+      "canonical_end_page": 122
+    },
+    {
+      "chapter_id": "unit-4",
+      "chapter_title": "Data Handling and Presentation",
+      "source_filename": "fegp104.pdf",
+      "source_start_page": 1,
+      "source_end_page": 44,
+      "canonical_start_page": 123,
+      "canonical_end_page": 166
+    },
+    {
+      "chapter_id": "unit-5",
+      "chapter_title": "Prime Time",
+      "source_filename": "fegp105.pdf",
+      "source_start_page": 1,
+      "source_end_page": 33,
+      "canonical_start_page": 167,
+      "canonical_end_page": 199
+    },
+    {
+      "chapter_id": "unit-6",
+      "chapter_title": "Perimeter and Area",
+      "source_filename": "fegp106.pdf",
+      "source_start_page": 1,
+      "source_end_page": 29,
+      "canonical_start_page": 200,
+      "canonical_end_page": 228
+    },
+    {
+      "chapter_id": "unit-7",
+      "chapter_title": "Fractions",
+      "source_filename": "fegp107.pdf",
+      "source_start_page": 1,
+      "source_end_page": 50,
+      "canonical_start_page": 229,
+      "canonical_end_page": 278
+    },
+    {
+      "chapter_id": "unit-8",
+      "chapter_title": "Playing with Constructions",
+      "source_filename": "fegp108.pdf",
+      "source_start_page": 1,
+      "source_end_page": 38,
+      "canonical_start_page": 279,
+      "canonical_end_page": 316
+    },
+    {
+      "chapter_id": "unit-9",
+      "chapter_title": "Symmetry",
+      "source_filename": "fegp109.pdf",
+      "source_start_page": 1,
+      "source_end_page": 40,
+      "canonical_start_page": 317,
+      "canonical_end_page": 356
+    },
+    {
+      "chapter_id": "unit-10",
+      "chapter_title": "The Other Side of Zero",
+      "source_filename": "fegp110.pdf",
+      "source_start_page": 1,
+      "source_end_page": 56,
+      "canonical_start_page": 357,
+      "canonical_end_page": 412
+    }
+  ]
+}

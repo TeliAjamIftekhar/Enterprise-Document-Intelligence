@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-mathematics-ganita-prakash",
+  "book_version": "v1",
+  "title": "Ganita Prakash Mathematics Textbook for Grade 6",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-VI/Mathematics-Ganita Prakash.zip",
+    "archive_root": "fegp1dd",
+    "supplementary_assets": []
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 412,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 412,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "fegp1ps.pdf",
+      "source_page_count": 20,
+      "canonical_start_page": 1,
+      "canonical_end_page": 20,
+      "title": "Ganita Prakash Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "fegp101.pdf",
+      "source_page_count": 17,
+      "canonical_start_page": 21,
+      "canonical_end_page": 37,
+      "title": "Patterns in Mathematics",
+      "chapters": [
+        {
+          "chapter_id": "unit-1",
+          "chapter_title": "Patterns in Mathematics",
+          "source_start_page": 1,
+          "source_end_page": 17,
+          "canonical_start_page": 21,
+          "canonical_end_page": 37
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "fegp102.pdf",
+      "source_page_count": 53,
+      "canonical_start_page": 38,
+      "canonical_end_page": 90,
+      "title": "Lines and Angles",
+      "chapters": [
+        {
+          "chapter_id": "unit-2",
+          "chapter_title": "Lines and Angles",
+          "source_start_page": 1,
+          "source_end_page": 53,
+          "canonical_start_page": 38,
+          "canonical_end_page": 90
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "fegp103.pdf",
+      "source_page_count": 32,
+      "canonical_start_page": 91,
+      "canonical_end_page": 122,
+      "title": "Number Play",
+      "chapters": [
+        {
+          "chapter_id": "unit-3",
+          "chapter_title": "Number Play",
+          "source_start_page": 1,
+          "source_end_page": 32,
+          "canonical_start_page": 91,
+          "canonical_end_page": 122
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "fegp104.pdf",
+      "source_page_count": 44,
+      "canonical_start_page": 123,
+      "canonical_end_page": 166,
+      "title": "Data Handling and Presentation",
+      "chapters": [
+        {
+          "chapter_id": "unit-4",
+          "chapter_title": "Data Handling and Presentation",
+          "source_start_page": 1,
+          "source_end_page": 44,
+          "canonical_start_page": 123,
+          "canonical_end_page": 166
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "fegp105.pdf",
+      "source_page_count": 33,
+      "canonical_start_page": 167,
+      "canonical_end_page": 199,
+      "title": "Prime Time",
+      "chapters": [
+        {
+          "chapter_id": "unit-5",
+          "chapter_title": "Prime Time",
+          "source_start_page": 1,
+          "source_end_page": 33,
+          "canonical_start_page": 167,
+          "canonical_end_page": 199
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "fegp106.pdf",
+      "source_page_count": 29,
+      "canonical_start_page": 200,
+      "canonical_end_page": 228,
+      "title": "Perimeter and Area",
+      "chapters": [
+        {
+          "chapter_id": "unit-6",
+          "chapter_title": "Perimeter and Area",
+          "source_start_page": 1,
+          "source_end_page": 29,
+          "canonical_start_page": 200,
+          "canonical_end_page": 228
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "fegp107.pdf",
+      "source_page_count": 50,
+      "canonical_start_page": 229,
+      "canonical_end_page": 278,
+      "title": "Fractions",
+      "chapters": [
+        {
+          "chapter_id": "unit-7",
+          "chapter_title": "Fractions",
+          "source_start_page": 1,
+          "source_end_page": 50,
+          "canonical_start_page": 229,
+          "canonical_end_page": 278
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "fegp108.pdf",
+      "source_page_count": 38,
+      "canonical_start_page": 279,
+      "canonical_end_page": 316,
+      "title": "Playing with Constructions",
+      "chapters": [
+        {
+          "chapter_id": "unit-8",
+          "chapter_title": "Playing with Constructions",
+          "source_start_page": 1,
+          "source_end_page": 38,
+          "canonical_start_page": 279,
+          "canonical_end_page": 316
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "document_id": "unit-9",
+      "document_type": "unit",
+      "unit_number": 9,
+      "source_filename": "fegp109.pdf",
+      "source_page_count": 40,
+      "canonical_start_page": 317,
+      "canonical_end_page": 356,
+      "title": "Symmetry",
+      "chapters": [
+        {
+          "chapter_id": "unit-9",
+          "chapter_title": "Symmetry",
+          "source_start_page": 1,
+          "source_end_page": 40,
+          "canonical_start_page": 317,
+          "canonical_end_page": 356
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "document_id": "unit-10",
+      "document_type": "unit",
+      "unit_number": 10,
+      "source_filename": "fegp110.pdf",
+      "source_page_count": 56,
+      "canonical_start_page": 357,
+      "canonical_end_page": 412,
+      "title": "The Other Side of Zero",
+      "chapters": [
+        {
+          "chapter_id": "unit-10",
+          "chapter_title": "The Other Side of Zero",
+          "source_start_page": 1,
+          "source_end_page": 56,
+          "canonical_start_page": 357,
+          "canonical_end_page": 412
+        }
+      ]
+    }
+  ]
+}
