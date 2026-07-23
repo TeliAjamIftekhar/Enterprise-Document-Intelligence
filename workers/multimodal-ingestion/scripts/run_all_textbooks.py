@@ -320,6 +320,11 @@ def paths_for_book(
             / "source"
             / "chapter-merge-report.json"
         ),
+        "bda_bridge_report": (
+            output_root
+            / "full-book"
+            / "bda-bridge-report.json"
+        ),
         "bda_normalized": (
             pipeline_root
             / "bda"
@@ -2168,6 +2173,42 @@ def build_rag_evaluation_command(
     ]
 
 
+def build_bda_bridge_command(
+    paths: dict[str, Path],
+) -> list[str]:
+    """Build the resume-safe paid BDA bridge command."""
+
+    return [
+        sys.executable,
+        str(
+            SCRIPTS_ROOT
+            / "run_full_book_bda_bridge.py"
+        ),
+        "--config",
+        str(paths["config"]),
+        "--execute",
+    ]
+
+
+def bda_bridge_is_valid(
+    paths: dict[str, Path],
+) -> bool:
+    """Confirm the bridge report and normalized records."""
+
+    return (
+        valid_report(
+            paths["bda_bridge_report"],
+            status_field="status",
+            accepted_statuses={
+                "BDA_NORMALIZED"
+            },
+        )
+        and directory_has_normalized_records(
+            paths["bda_normalized"]
+        )
+    )
+
+
 def process_book(
     book: dict[str, Any],
     *,
@@ -2514,6 +2555,61 @@ def process_book(
                 book=book,
                 status="MERGED",
                 paths=paths,
+            )
+
+    normalized_ready = (
+        directory_has_normalized_records(
+            paths["bda_normalized"]
+        )
+    )
+
+    if not normalized_ready:
+        bda_command = (
+            build_bda_bridge_command(
+                paths
+            )
+        )
+
+        if not dry_run:
+            update_book_state(
+                state_path,
+                state,
+                book=book,
+                status="BDA_PROCESSING",
+                paths=paths,
+            )
+
+        run_command(
+            bda_command,
+            log_path=paths["log"],
+            maximum_retries=(
+                maximum_retries
+            ),
+            dry_run=dry_run,
+        )
+
+        if not dry_run:
+            if not bda_bridge_is_valid(
+                paths
+            ):
+                raise RuntimeError(
+                    "BDA bridge completed without "
+                    "valid normalized artifacts: "
+                    f"{paths['bda_bridge_report']}"
+                )
+
+            update_book_state(
+                state_path,
+                state,
+                book=book,
+                status="BDA_NORMALIZED",
+                paths=paths,
+            )
+
+            print(
+                "BDA processing and normalization "
+                "completed:",
+                paths["bda_bridge_report"],
             )
 
     normalized_ready = (
