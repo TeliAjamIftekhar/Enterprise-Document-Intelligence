@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import tempfile
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -258,6 +259,96 @@ def render_page_difference_metrics(
     }
 
 
+def classify_text_extraction_variances(
+    text_mismatches: list[
+        dict[str, object]
+    ],
+    geometry_mismatches: list[
+        dict[str, object]
+    ],
+    render_records: list[
+        dict[str, object]
+    ],
+) -> tuple[
+    list[dict[str, object]],
+    list[dict[str, object]],
+]:
+    """Separate harmless extraction variance from unsafe mismatch.
+
+    A text mismatch is accepted only when page geometry
+    matches and the rendered page is pixel-identical.
+    """
+
+    def page_key(
+        record: dict[str, object],
+    ) -> tuple[str, int, int]:
+        return (
+            str(record["source_filename"]),
+            int(record["source_page"]),
+            int(record["canonical_page"]),
+        )
+
+    geometry_mismatch_keys = {
+        page_key(record)
+        for record in geometry_mismatches
+    }
+
+    render_by_page = {
+        page_key(record): record
+        for record in render_records
+    }
+
+    accepted: list[dict[str, object]] = []
+    unsafe: list[dict[str, object]] = []
+
+    for mismatch in text_mismatches:
+        key = page_key(mismatch)
+
+        render_record = render_by_page.get(
+            key
+        )
+
+        geometry_matches = (
+            key not in geometry_mismatch_keys
+        )
+
+        exact_render = (
+            render_record is not None
+            and bool(
+                render_record.get(
+                    "shape_matches"
+                )
+            )
+            and int(
+                render_record.get(
+                    "maximum_channel_difference",
+                    1,
+                )
+            )
+            == 0
+        )
+
+        if geometry_matches and exact_render:
+            accepted.append({
+                **mismatch,
+                "reason": (
+                    "text extraction variance "
+                    "with exact visual equivalence"
+                ),
+            })
+            continue
+
+        unsafe.append({
+            **mismatch,
+            "geometry_matches": (
+                geometry_matches
+            ),
+            "exact_render": exact_render,
+        })
+
+    return accepted, unsafe
+
+
 def validate_source_equivalence(
     merged_pdf_path: Path,
     source_directory: Path,
@@ -500,12 +591,14 @@ def validate_source_equivalence(
                     f"text: {page_number}"
                 )
 
-    if text_mismatches:
-        raise ValueError(
-            "Merged PDF text equivalence failed "
-            f"for {len(text_mismatches)} "
-            "source page(s)."
-        )
+    (
+        accepted_text_variances,
+        unsafe_text_mismatches,
+    ) = classify_text_extraction_variances(
+        text_mismatches,
+        geometry_mismatches,
+        render_records,
+    )
 
     if geometry_mismatches:
         raise ValueError(
@@ -525,6 +618,19 @@ def validate_source_equivalence(
             "Merged PDF visual equivalence "
             f"failed for "
             f"{len(render_mismatches)} "
+            f"source page(s). Sample: {sample}"
+        )
+
+    if unsafe_text_mismatches:
+        sample = json.dumps(
+            unsafe_text_mismatches[:3],
+            ensure_ascii=False,
+        )
+
+        raise ValueError(
+            "Merged PDF text equivalence failed "
+            f"for "
+            f"{len(unsafe_text_mismatches)} "
             f"source page(s). Sample: {sample}"
         )
 
@@ -571,8 +677,17 @@ def validate_source_equivalence(
         "mismatching_source_pages": 0,
         "matching_source_text_pages": (
             checked_pages
+            - len(text_mismatches)
         ),
-        "mismatching_source_text_pages": 0,
+        "mismatching_source_text_pages": (
+            len(text_mismatches)
+        ),
+        "accepted_text_extraction_variance_pages": (
+            len(accepted_text_variances)
+        ),
+        "text_extraction_variances": (
+            accepted_text_variances
+        ),
         "matching_source_geometry_pages": (
             checked_pages
         ),
@@ -986,7 +1101,18 @@ def build_chapter_textbook(
             temporary_file.name
         )
 
-    merged_document = fitz.open()
+    # Preserve the first source PDF as the base
+    # document. Creating a new empty PDF and using
+    # insert_pdf() for every source can alter complex
+    # transparency, colour and font resources.
+    shutil.copy2(
+        first_source_path,
+        temporary_pdf_path,
+    )
+
+    merged_document = fitz.open(
+        temporary_pdf_path
+    )
 
     try:
         for _ in range(
@@ -994,11 +1120,29 @@ def build_chapter_textbook(
             .leading_blank_pages
         ):
             merged_document.new_page(
+                pno=0,
                 width=first_page_rect.width,
                 height=first_page_rect.height,
             )
 
-        for document in manifest.documents:
+        first_document = (
+            manifest.documents[0]
+        )
+
+        if (
+            merged_document.page_count
+            != first_document.canonical_end_page
+        ):
+            raise ValueError(
+                "Merged page offset mismatch "
+                f"after "
+                f"{first_document.document_id}: "
+                f"{merged_document.page_count} "
+                f"!= "
+                f"{first_document.canonical_end_page}"
+            )
+
+        for document in manifest.documents[1:]:
             source_path = (
                 source_directory
                 / document.source_filename
@@ -1066,30 +1210,33 @@ def build_chapter_textbook(
             "producer": "PyMuPDF",
         })
 
-        merged_document.save(
-            temporary_pdf_path,
-            garbage=4,
-            deflate=True,
-        )
+        merged_document.saveIncr()
 
     finally:
         merged_document.close()
 
-    source_equivalence = (
-        validate_source_equivalence(
-            temporary_pdf_path,
-            source_directory,
-            manifest,
+    try:
+        source_equivalence = (
+            validate_source_equivalence(
+                temporary_pdf_path,
+                source_directory,
+                manifest,
+            )
         )
-    )
 
-    output_validation = validate_pdf(
-        temporary_pdf_path,
-        expected_page_count=(
-            manifest.canonical_layout
-            .canonical_page_count
-        ),
-    )
+        output_validation = validate_pdf(
+            temporary_pdf_path,
+            expected_page_count=(
+                manifest.canonical_layout
+                .canonical_page_count
+            ),
+        )
+
+    except Exception:
+        temporary_pdf_path.unlink(
+            missing_ok=True
+        )
+        raise
 
     reference_comparison = None
 
