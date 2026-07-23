@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-sanskrit-deepakam",
+  "book_version": "v1",
+  "index_name": "grade-6-sanskrit-deepakam-v1",
+  "tests": [
+    {
+      "test_id": "joint-consonants-formation",
+      "query": "द्वयोः बहूनां वा व्यञ्जन-वर्णानां मेलनेन कानि भवन्ति?",
+      "expected_record_id": "grade-6-sanskrit-deepakam:v1:surya:page-0041:92a1f24f79a3c46d35c0184d:chunk-0001",
+      "expected_page": 41,
+      "expected_modality": "paragraph",
+      "candidate_modality": "paragraph"
+    },
+    {
+      "test_id": "accusative-word-forms",
+      "query": "द्वितीया विभक्तौ ग्राम तथा भगिनी शब्दयोः एकवचन-द्विवचन-बहुवचनरूपाणि कानि?",
+      "expected_record_id": "grade-6-sanskrit-deepakam:v1:surya:page-0165:10557ad02dd911fb97d16b58:chunk-0001",
+      "expected_page": 165,
+      "expected_modality": "paragraph",
+      "candidate_modality": "paragraph"
+    },
+    {
+      "test_id": "actions-and-body-parts",
+      "query": "शृणोति धावति नमति सूचयति लिखति इति क्रियापदानां समुचितानि शरीराङ्गानि कानि?",
+      "expected_record_id": "grade-6-sanskrit-deepakam:v1:surya:page-0172:656287f696e357d20c528765:chunk-0001",
+      "expected_page": 172,
+      "expected_modality": "paragraph",
+      "candidate_modality": "paragraph"
+    }
+  ]
+}

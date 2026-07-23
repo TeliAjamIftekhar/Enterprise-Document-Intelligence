@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-sanskrit-deepakam",
+  "book_version": "v1",
+  "tests": [
+    {
+      "test_id": "joint-consonants-explanation",
+      "question": "संयुक्त-व्यञ्जनानि कथं भवन्ति? क्ष तथा ज्ञ इत्येतयोः निर्माणं स्पष्टयतु।",
+      "top_k": 5,
+      "modality": "paragraph",
+      "expected_citation_pages": [
+        41
+      ],
+      "required_term_groups": [
+        [
+          "संयुक्त-व्यञ्जन",
+          "संयुक्त व्यञ्जन"
+        ],
+        [
+          "क्ष"
+        ],
+        [
+          "क्"
+        ],
+        [
+          "ष्"
+        ],
+        [
+          "ज्ञ"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "accusative-word-forms",
+      "question": "द्वितीया विभक्तौ ग्राम तथा भगिनी शब्दयोः एकवचन-द्विवचन-बहुवचनरूपाणि लिखतु।",
+      "top_k": 5,
+      "modality": "paragraph",
+      "expected_citation_pages": [
+        165
+      ],
+      "required_term_groups": [
+        [
+          "ग्रामम्"
+        ],
+        [
+          "ग्रामौ"
+        ],
+        [
+          "ग्रामान्"
+        ],
+        [
+          "भगिनीम्"
+        ],
+        [
+          "भगिन्यौ"
+        ],
+        [
+          "भगिनीः"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "actions-and-body-parts",
+      "question": "शृणोति, धावति, नमति, सूचयति तथा लिखति इति क्रियापदानां समुचितानि शरीराङ्गानि कानि?",
+      "top_k": 5,
+      "modality": "paragraph",
+      "expected_citation_pages": [
+        172
+      ],
+      "required_term_groups": [
+        [
+          "कर्णः",
+          "कर्ण"
+        ],
+        [
+          "पादद्वयम्"
+        ],
+        [
+          "शिरः"
+        ],
+        [
+          "अङ्गुली"
+        ],
+        [
+          "हस्तः",
+          "हस्त"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "unsupported-outside-textbook",
+      "question": "फ्रांसदेशस्य राजधानी का अस्ति?",
+      "top_k": 5,
+      "modality": null,
+      "expected_citation_pages": [],
+      "required_term_groups": [],
+      "expect_insufficient": true
+    }
+  ]
+}

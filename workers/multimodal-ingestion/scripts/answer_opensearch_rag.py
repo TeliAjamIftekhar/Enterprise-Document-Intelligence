@@ -5,6 +5,7 @@ import csv
 import json
 import re
 import sys
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -828,17 +829,48 @@ CONTENT_STOP_WORDS = {
 }
 
 
+def unicode_content_words(
+    value: str,
+) -> list[str]:
+    """Return Unicode words with combining marks preserved."""
+
+    normalized = unicodedata.normalize(
+        "NFC",
+        value,
+    ).casefold()
+
+    words: list[str] = []
+    current: list[str] = []
+
+    for character in normalized:
+        category = unicodedata.category(
+            character
+        )
+
+        if category[:1] in {
+            "L",
+            "M",
+            "N",
+        }:
+            current.append(character)
+            continue
+
+        if current:
+            words.append("".join(current))
+            current = []
+
+    if current:
+        words.append("".join(current))
+
+    return words
+
+
 def content_tokens(
     value: str,
 ) -> set[str]:
-    tokens = re.findall(
-        r"[a-z0-9]+",
-        value.lower(),
-    )
-
     return {
         token
-        for token in tokens
+        for token in unicode_content_words(value)
         if (
             len(token) >= 3
             and token not in CONTENT_STOP_WORDS
@@ -851,10 +883,7 @@ def content_bigrams(
 ) -> set[str]:
     tokens = [
         token
-        for token in re.findall(
-            r"[a-z0-9]+",
-            value.lower(),
-        )
+        for token in unicode_content_words(value)
         if (
             len(token) >= 3
             and token not in CONTENT_STOP_WORDS
@@ -868,6 +897,31 @@ def content_bigrams(
         )
     }
 
+
+def normalize_verbose_page_citations(
+    answer: str,
+) -> str:
+    """Convert source-label citations to canonical page citations.
+
+    Example:
+    [द्वितीयः पाठः (book-id, page 41)] -> [Page 41]
+    """
+
+    pattern = re.compile(
+        (
+            r"\[[^\[\]]*?"
+            r"\bpage\s+([0-9]+)"
+            r"\s*\)?\s*\]"
+        ),
+        flags=re.IGNORECASE,
+    )
+
+    return pattern.sub(
+        lambda match: (
+            f"[Page {int(match.group(1))}]"
+        ),
+        answer,
+    )
 
 
 def normalize_combined_page_citations(
@@ -933,7 +987,9 @@ def realign_answer_citations(
         )
 
     normalized_answer = normalize_combined_page_citations(
-        answer
+        normalize_verbose_page_citations(
+            answer
+        )
     )
 
     normalized_citation_positions = re.sub(
