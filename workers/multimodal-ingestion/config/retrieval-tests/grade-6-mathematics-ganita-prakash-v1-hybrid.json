@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-mathematics-ganita-prakash",
+  "book_version": "v1",
+  "index_name": "grade-6-mathematics-ganita-prakash-v1",
+  "tests": [
+    {
+      "test_id": "idli-vada-common-multiples",
+      "query": "In Fig. 5.1 of the idli-vada game, which numbers up to 30 are common multiples of both 3 and 5?",
+      "expected_record_id": "grade-6-mathematics-ganita-prakash:v1:bda:b49b73d1-502d-495a-a829-dd1c9b67ed19:chunk-0001",
+      "expected_page": 168,
+      "expected_modality": "diagram",
+      "candidate_modality": "diagram"
+    },
+    {
+      "test_id": "fraction-lowest-terms-definition",
+      "query": "When is a fraction said to be in lowest terms based on the common factors of its numerator and denominator?",
+      "expected_record_id": "grade-6-mathematics-ganita-prakash:v1:bda:ad298c4a-67a7-4a6b-afdf-531a1a64f8b4:chunk-0001",
+      "expected_page": 250,
+      "expected_modality": "paragraph",
+      "candidate_modality": "paragraph"
+    },
+    {
+      "test_id": "pictograph-bar-graph-scale",
+      "query": "How do pictographs and bar graphs represent frequency, and why must their scale be specified?",
+      "expected_record_id": "grade-6-mathematics-ganita-prakash:v1:bda:e0287e0a-52f4-4de7-a6e1-4d2ab81ae650:chunk-0001",
+      "expected_page": 155,
+      "expected_modality": "list"
+    },
+    {
+      "test_id": "symmetry-definitions",
+      "query": "What are a line of symmetry, an angle of symmetry, and rotational symmetry?",
+      "expected_record_id": "grade-6-mathematics-ganita-prakash:v1:bda:61f459d0-67f6-476d-ac1a-44eaf1ea5cfb:chunk-0001",
+      "expected_page": 341,
+      "expected_modality": "list"
+    }
+  ]
+}

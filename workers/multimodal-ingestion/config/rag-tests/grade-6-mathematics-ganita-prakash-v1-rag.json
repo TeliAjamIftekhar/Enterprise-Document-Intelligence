@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-mathematics-ganita-prakash",
+  "book_version": "v1",
+  "tests": [
+    {
+      "test_id": "idli-vada-common-multiples",
+      "question": "In Fig. 5.1 of the idli-vada game, which numbers up to 30 are common multiples of both 3 and 5?",
+      "top_k": 5,
+      "modality": "diagram",
+      "expected_citation_pages": [
+        168
+      ],
+      "required_term_groups": [
+        [
+          "15"
+        ],
+        [
+          "30"
+        ],
+        [
+          "common multiple",
+          "common multiples"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "fraction-lowest-terms-definition",
+      "question": "When is a fraction said to be in lowest terms based on the common factors of its numerator and denominator?",
+      "top_k": 5,
+      "modality": "paragraph",
+      "expected_citation_pages": [
+        250
+      ],
+      "required_term_groups": [
+        [
+          "numerator"
+        ],
+        [
+          "denominator"
+        ],
+        [
+          "common factor",
+          "common factors"
+        ],
+        [
+          "1",
+          "one"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "pictograph-bar-graph-scale",
+      "question": "How do pictographs and bar graphs represent frequency, and why must their scale be specified?",
+      "top_k": 5,
+      "modality": "list",
+      "expected_citation_pages": [
+        155
+      ],
+      "required_term_groups": [
+        [
+          "pictograph",
+          "pictographs"
+        ],
+        [
+          "bar graph",
+          "bar graphs"
+        ],
+        [
+          "frequency",
+          "frequencies"
+        ],
+        [
+          "scale"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "symmetry-definitions",
+      "question": "What are a line of symmetry, an angle of symmetry, and rotational symmetry?",
+      "top_k": 5,
+      "modality": "list",
+      "expected_citation_pages": [
+        341
+      ],
+      "required_term_groups": [
+        [
+          "line of symmetry",
+          "axis of symmetry"
+        ],
+        [
+          "angle of symmetry"
+        ],
+        [
+          "rotational symmetry"
+        ]
+      ],
+      "expect_insufficient": false
+    },
+    {
+      "test_id": "unsupported-outside-textbook",
+      "question": "What is the capital of France?",
+      "top_k": 5,
+      "modality": null,
+      "expected_citation_pages": [],
+      "required_term_groups": [],
+      "expect_insufficient": true
+    }
+  ]
+}
