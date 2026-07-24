@@ -113,6 +113,10 @@ def main(
         report.created_surya_text_units,
     )
     print(
+        "Created native units: ",
+        report.created_native_pdf_text_units,
+    )
+    print(
         "Preserved figures:    ",
         report.preserved_figures,
     )

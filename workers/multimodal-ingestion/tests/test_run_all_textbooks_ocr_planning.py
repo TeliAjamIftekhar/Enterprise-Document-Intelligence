@@ -2552,3 +2552,47 @@ def test_kaveri_is_not_hardcoded_verified() -> None:
         path.is_file()
         for path in cases.values()
     )
+
+
+
+def test_inspection_uses_text_layout(
+    tmp_path: Path,
+) -> None:
+    runner = load_runner()
+    inspection = tmp_path / "inspection.json"
+
+    write_json(
+        inspection,
+        {
+            "classification": {
+                "extraction_route": "text-layout",
+            },
+            "text_evidence": {
+                "extraction_route": "text-layout",
+            },
+        },
+    )
+
+    assert runner.inspection_uses_text_layout(
+        inspection
+    )
+
+
+def test_visual_inspection_disables_native_recovery(
+    tmp_path: Path,
+) -> None:
+    runner = load_runner()
+    inspection = tmp_path / "inspection.json"
+
+    write_json(
+        inspection,
+        {
+            "classification": {
+                "extraction_route": "visual-bda",
+            }
+        },
+    )
+
+    assert not runner.inspection_uses_text_layout(
+        inspection
+    )

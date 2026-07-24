@@ -101,6 +101,25 @@ def parse_args(
     )
 
     parser.add_argument(
+        "--canonical-pdf",
+        type=Path,
+        default=None,
+        help=(
+            "Canonical textbook PDF used only for "
+            "approved text-layout recovery."
+        ),
+    )
+
+    parser.add_argument(
+        "--allow-native-text-recovery",
+        action="store_true",
+        help=(
+            "Enable guarded native text recovery for "
+            "a verified text-layout textbook."
+        ),
+    )
+
+    parser.add_argument(
         "--output",
         type=Path,
         required=True,
@@ -122,6 +141,10 @@ def main(
         records,
         expected_language=args.expected_language,
         expected_pages=args.expected_pages,
+        canonical_pdf_path=args.canonical_pdf,
+        allow_native_text_recovery=(
+            args.allow_native_text_recovery
+        ),
     )
 
     write_fallback_plan(
@@ -142,6 +165,10 @@ def main(
     print("Review:        ", len(plan.review_pages))
     print("Failed:        ", len(plan.failed_pages))
     print("Missing:       ", len(plan.missing_pages))
+    print(
+        "Native recovered:",
+        len(plan.canonical_recovered_pages),
+    )
     print("Fallback pages:", list(plan.fallback_pages))
     print("Plan:          ", args.output)
     print("AWS API calls: 0")

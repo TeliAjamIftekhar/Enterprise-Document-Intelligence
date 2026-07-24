@@ -28,12 +28,14 @@ class UnifiedMergeReport:
 
     fallback_pages: tuple[int, ...]
     accepted_bda_pages: tuple[int, ...]
+    canonical_recovered_pages: tuple[int, ...]
 
     input_content_units: int
     output_content_units: int
 
     removed_bda_text_units: int
     created_surya_text_units: int
+    created_native_pdf_text_units: int
     preserved_bda_content_units: int
 
     preserved_figures: int
@@ -61,6 +63,12 @@ class UnifiedMergeReport:
 
         payload["accepted_bda_pages"] = list(
             self.accepted_bda_pages
+        )
+
+        payload[
+            "canonical_recovered_pages"
+        ] = list(
+            self.canonical_recovered_pages
         )
 
         return payload
@@ -235,6 +243,18 @@ def load_ocr_plan(
         field_name="accepted_bda_pages",
     )
 
+    canonical_recovered_pages = (
+        normalize_positive_pages(
+            payload.get(
+                "canonical_recovered_pages",
+                [],
+            ),
+            field_name=(
+                "canonical_recovered_pages"
+            ),
+        )
+    )
+
     if (
         classification == "OCR_FALLBACK_REQUIRED"
         and not fallback_pages
@@ -244,11 +264,32 @@ def load_ocr_plan(
             "fallback pages"
         )
 
+    recovered_set = set(
+        canonical_recovered_pages
+    )
+
+    if recovered_set & set(fallback_pages):
+        raise ValueError(
+            "Canonical recovered pages cannot also "
+            "be OCR fallback pages"
+        )
+
+    if not recovered_set.issubset(
+        set(accepted_bda_pages)
+    ):
+        raise ValueError(
+            "Canonical recovered pages must be "
+            "included in accepted_bda_pages"
+        )
+
     payload = dict(payload)
     payload["fallback_pages"] = fallback_pages
     payload["accepted_bda_pages"] = (
         accepted_bda_pages
     )
+    payload[
+        "canonical_recovered_pages"
+    ] = canonical_recovered_pages
 
     return payload
 
@@ -671,6 +712,166 @@ def build_surya_content_unit(
     return unit
 
 
+
+def deterministic_native_pdf_unit_id(
+    *,
+    book_id: str,
+    book_version: str,
+    canonical_page: int,
+    clean_text: str,
+) -> str:
+    """Create a stable identifier for recovered native PDF text."""
+
+    digest = hashlib.sha256(
+        (
+            f"{book_id}\n"
+            f"{book_version}\n"
+            f"{canonical_page}\n"
+            f"{clean_text}"
+        ).encode("utf-8")
+    ).hexdigest()[:24]
+
+    return (
+        f"{book_id}:{book_version}:"
+        f"canonical-pdf:page-{canonical_page:04d}:"
+        f"{digest}"
+    )
+
+
+def build_native_pdf_content_unit(
+    *,
+    book_id: str,
+    book_version: str,
+    source_pdf: str,
+    canonical_page: int,
+    page_context: dict[str, Any],
+    clean_text: str,
+    decision: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build one embedding-compatible native PDF recovery unit."""
+
+    clean_text = clean_text.strip()
+
+    if not clean_text:
+        raise ValueError(
+            "Native PDF recovery text is empty for "
+            f"page {canonical_page}"
+        )
+
+    unit: dict[str, Any] = {
+        "schema_version": "1.1",
+        "unit_id": deterministic_native_pdf_unit_id(
+            book_id=book_id,
+            book_version=book_version,
+            canonical_page=canonical_page,
+            clean_text=clean_text,
+        ),
+        "book_id": book_id,
+        "book_version": book_version,
+        "source_kind": (
+            "canonical_pdf_text_recovery"
+        ),
+        "source_pdf": source_pdf,
+        "source_sample_s3_uri": "",
+        "bda_element_id": None,
+        "element_index": (
+            2_000_000 + canonical_page
+        ),
+        "element_type": "TEXT",
+        "element_sub_type": (
+            "NATIVE_PDF_TEXT_RECOVERY"
+        ),
+        "modality": "paragraph",
+        "reading_order": 0,
+        "sample_page_indices": [],
+        "source_page_numbers": [
+            canonical_page
+        ],
+        "locations": [],
+        "raw_text": clean_text,
+        "markdown": clean_text,
+        "generated_title": "",
+        "generated_summary": "",
+        "search_text": clean_text,
+        "asset_s3_uris": [],
+        "asset_local_paths": [],
+        "retrieval_priority": "normal",
+        "text_source": "canonical_pdf",
+        "ocr_quality": copy.deepcopy(
+            decision or {}
+        ),
+        "quality_flags": [
+            "canonical_pdf_text_recovered",
+            "bda_text_unit_missing",
+        ],
+    }
+
+    unit.update(
+        _page_context_fields(
+            page_context
+        )
+    )
+
+    return unit
+
+
+def load_native_pdf_page_texts(
+    source_pdf: str,
+    page_numbers: Iterable[int],
+) -> dict[int, str]:
+    """Extract selected native text pages from a local canonical PDF."""
+
+    try:
+        import fitz
+    except ImportError as error:
+        raise RuntimeError(
+            "PyMuPDF is required for canonical "
+            "PDF text recovery."
+        ) from error
+
+    pdf_path = Path(source_pdf)
+
+    if not pdf_path.is_file():
+        raise FileNotFoundError(
+            "Canonical PDF is not available locally: "
+            f"{pdf_path}"
+        )
+
+    requested_pages = tuple(
+        sorted(
+            set(page_numbers)
+        )
+    )
+
+    recovered: dict[int, str] = {}
+
+    with fitz.open(
+        str(pdf_path)
+    ) as document:
+        for page_number in requested_pages:
+            if not 1 <= page_number <= len(document):
+                raise ValueError(
+                    "Canonical recovery page is outside "
+                    f"the PDF range: {page_number}"
+                )
+
+            raw_text = document.load_page(
+                page_number - 1
+            ).get_text("text")
+
+            clean_text = "\n".join(
+                line.rstrip()
+                for line in str(
+                    raw_text
+                ).splitlines()
+            ).strip()
+
+            if clean_text:
+                recovered[page_number] = clean_text
+
+    return recovered
+
+
 def plan_assessments_by_page(
     plan: dict[str, Any],
 ) -> dict[int, dict[str, Any]]:
@@ -745,6 +946,7 @@ def merge_records(
     book_id: str,
     book_version: str,
     source_pdf: str,
+    native_pdf_pages: dict[int, str] | None = None,
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
@@ -753,6 +955,17 @@ def merge_records(
 ]:
     fallback_pages = set(
         plan["fallback_pages"]
+    )
+
+    canonical_recovered_pages = set(
+        plan.get(
+            "canonical_recovered_pages",
+            (),
+        )
+    )
+
+    native_pdf_pages = dict(
+        native_pdf_pages or {}
     )
 
     assessments = (
@@ -764,6 +977,15 @@ def merge_records(
     ] = []
 
     removed_text_units = 0
+    created_native_pdf_text_units = 0
+
+    bda_text_pages: set[int] = set()
+
+    for record in content_units:
+        if is_bda_text_unit(record):
+            bda_text_pages.update(
+                record_page_numbers(record)
+            )
 
     for original in content_units:
         record = copy.deepcopy(original)
@@ -804,6 +1026,47 @@ def merge_records(
                 record["ocr_quality"] = quality
 
         output_units.append(record)
+
+    native_only_pages = (
+        canonical_recovered_pages
+        - bda_text_pages
+    )
+
+    for page in sorted(native_only_pages):
+        page_context = page_lookup.get(page)
+
+        if page_context is None:
+            raise ValueError(
+                "Canonical recovered page is missing "
+                f"from chapter page map: {page}"
+            )
+
+        clean_text = str(
+            native_pdf_pages.get(
+                page,
+                "",
+            )
+        ).strip()
+
+        if not clean_text:
+            raise ValueError(
+                "Canonical recovered page has no "
+                f"native PDF text: {page}"
+            )
+
+        output_units.append(
+            build_native_pdf_content_unit(
+                book_id=book_id,
+                book_version=book_version,
+                source_pdf=source_pdf,
+                canonical_page=page,
+                page_context=page_context,
+                clean_text=clean_text,
+                decision=assessments.get(page),
+            )
+        )
+
+        created_native_pdf_text_units += 1
 
     for page in sorted(fallback_pages):
         page_context = page_lookup.get(page)
@@ -892,6 +1155,9 @@ def merge_records(
         ),
         "created_surya_text_units": len(
             fallback_pages
+        ),
+        "created_native_pdf_text_units": (
+            created_native_pdf_text_units
         ),
         "preserved_bda_content_units": (
             len(content_units)
@@ -1103,6 +1369,34 @@ def merge_bda_surya_outputs(
             "Unable to resolve canonical source PDF"
         )
 
+    canonical_recovered_pages: tuple[int, ...] = (
+        plan["canonical_recovered_pages"]
+    )
+
+    bda_text_pages: set[int] = set()
+
+    for record in content_units:
+        if is_bda_text_unit(record):
+            bda_text_pages.update(
+                record_page_numbers(record)
+            )
+
+    native_only_pages = tuple(
+        sorted(
+            set(canonical_recovered_pages)
+            - bda_text_pages
+        )
+    )
+
+    native_pdf_pages = (
+        load_native_pdf_page_texts(
+            resolved_source_pdf,
+            native_only_pages,
+        )
+        if native_only_pages
+        else {}
+    )
+
     (
         output_units,
         output_figures,
@@ -1118,6 +1412,7 @@ def merge_bda_surya_outputs(
         book_id=book_id,
         book_version=book_version,
         source_pdf=resolved_source_pdf,
+        native_pdf_pages=native_pdf_pages,
     )
 
     output_dir.mkdir(
@@ -1162,6 +1457,9 @@ def merge_bda_surya_outputs(
         accepted_bda_pages=(
             plan["accepted_bda_pages"]
         ),
+        canonical_recovered_pages=(
+            plan["canonical_recovered_pages"]
+        ),
         input_content_units=statistics[
             "input_content_units"
         ],
@@ -1173,6 +1471,9 @@ def merge_bda_surya_outputs(
         ],
         created_surya_text_units=statistics[
             "created_surya_text_units"
+        ],
+        created_native_pdf_text_units=statistics[
+            "created_native_pdf_text_units"
         ],
         preserved_bda_content_units=statistics[
             "preserved_bda_content_units"

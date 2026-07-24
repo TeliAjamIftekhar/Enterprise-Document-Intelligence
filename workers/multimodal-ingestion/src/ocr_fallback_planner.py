@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import difflib
 import json
+import re
 import statistics
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Iterable, Literal, Sequence
 
@@ -91,6 +93,7 @@ class OCRFallbackPlan:
     review_pages: tuple[int, ...]
     failed_pages: tuple[int, ...]
     missing_pages: tuple[int, ...]
+    canonical_recovered_pages: tuple[int, ...]
 
     assessments: tuple[PageQualityAssessment, ...]
 
@@ -110,6 +113,9 @@ class OCRFallbackPlan:
             "review_pages": list(self.review_pages),
             "failed_pages": list(self.failed_pages),
             "missing_pages": list(self.missing_pages),
+            "canonical_recovered_pages": list(
+                self.canonical_recovered_pages
+            ),
             "summary": {
                 "expected": len(self.expected_pages),
                 "discovered": len(self.discovered_pages),
@@ -118,6 +124,9 @@ class OCRFallbackPlan:
                 "review": len(self.review_pages),
                 "failed": len(self.failed_pages),
                 "missing": len(self.missing_pages),
+                "canonical_recovered": len(
+                    self.canonical_recovered_pages
+                ),
             },
             "assessments": [
                 assessment.to_dict()
@@ -554,14 +563,80 @@ def normalize_expected_pages(
     return tuple(sorted(pages))
 
 
+def normalized_element_type(
+    record: dict[str, Any],
+) -> str:
+    """Return the normalized BDA element type when available."""
+
+    value = record.get("element_type")
+
+    if value is None:
+        metadata = record.get("metadata")
+
+        if isinstance(metadata, dict):
+            value = metadata.get("element_type")
+
+    return str(value or "").strip().upper()
+
+
+def extract_quality_record_text(
+    record: dict[str, Any],
+) -> str:
+    """Select one primary text representation for quality checks.
+
+    Normalized BDA rows usually contain raw_text, markdown and
+    search_text versions of the same element. Combining all of them
+    creates artificial repetition. Use only the first usable primary
+    field. Legacy records without an element type retain the existing
+    recursive extraction behaviour.
+    """
+
+    for key in (
+        "raw_text",
+        "markdown",
+        "search_text",
+        "clean_text",
+        "normalized_text",
+        "text",
+    ):
+        value = record.get(key)
+
+        if isinstance(value, str):
+            cleaned = clean_ocr_text(value)
+
+            if cleaned:
+                return cleaned
+
+    if not normalized_element_type(record):
+        return extract_record_text(record)
+
+    return ""
+
+
 def select_page_candidates(
     records: Sequence[dict[str, Any]],
 ) -> tuple[BDARecordCandidate, ...]:
-    """Combine duplicate normalized records for each canonical page."""
+    """Build page text from primary TEXT records.
+
+    FIGURE descriptions are intentionally excluded because visual
+    summaries can repeat large portions of a page. TABLE records are
+    used only when a page has no usable TEXT record. Legacy untyped
+    records are treated as TEXT records for backward compatibility.
+    """
 
     grouped: dict[int, list[dict[str, Any]]] = {}
 
     for record in records:
+        element_type = normalized_element_type(
+            record
+        )
+
+        if element_type and element_type not in {
+            "TEXT",
+            "TABLE",
+        }:
+            continue
+
         page_numbers = extract_page_numbers(
             record
         )
@@ -575,14 +650,45 @@ def select_page_candidates(
     candidates: list[BDARecordCandidate] = []
 
     for page_number, page_records in grouped.items():
-        text_values: list[str] = []
-        confidences: list[float] = []
+        text_entries: list[
+            tuple[dict[str, Any], str]
+        ] = []
+        table_entries: list[
+            tuple[dict[str, Any], str]
+        ] = []
 
         for record in page_records:
-            text = extract_record_text(record)
+            text = extract_quality_record_text(
+                record
+            )
 
-            if text:
-                text_values.append(text)
+            if not text:
+                continue
+
+            entry = (record, text)
+
+            if normalized_element_type(record) == "TABLE":
+                table_entries.append(entry)
+            else:
+                text_entries.append(entry)
+
+        selected_entries = (
+            text_entries
+            if text_entries
+            else table_entries
+        )
+
+        if not selected_entries:
+            continue
+
+        unique_texts: list[str] = []
+        seen: set[str] = set()
+        confidences: list[float] = []
+
+        for record, text in selected_entries:
+            if text not in seen:
+                seen.add(text)
+                unique_texts.append(text)
 
             confidence = extract_record_confidence(
                 record
@@ -590,16 +696,6 @@ def select_page_candidates(
 
             if confidence is not None:
                 confidences.append(confidence)
-
-        unique_texts: list[str] = []
-        seen: set[str] = set()
-
-        for text in text_values:
-            if text in seen:
-                continue
-
-            seen.add(text)
-            unique_texts.append(text)
 
         clean_text = "\n".join(
             unique_texts
@@ -617,7 +713,7 @@ def select_page_candidates(
                 clean_text=clean_text,
                 confidence=confidence,
                 source_record_count=len(
-                    page_records
+                    selected_entries
                 ),
             )
         )
@@ -632,16 +728,236 @@ def select_page_candidates(
     )
 
 
+def _comparison_text(text: str) -> str:
+    return re.sub(
+        r"\s+",
+        " ",
+        clean_ocr_text(text),
+    ).strip().casefold()
+
+
+def _agreement_metrics(
+    left: str,
+    right: str,
+) -> tuple[float, float, float]:
+    normalized_left = _comparison_text(left)
+    normalized_right = _comparison_text(right)
+
+    if not normalized_left or not normalized_right:
+        return 0.0, 0.0, 0.0
+
+    sequence_similarity = (
+        difflib.SequenceMatcher(
+            None,
+            normalized_left,
+            normalized_right,
+            autojunk=False,
+        ).ratio()
+    )
+
+    left_tokens = set(
+        re.findall(
+            r"[\w'-]+",
+            normalized_left,
+            flags=re.UNICODE,
+        )
+    )
+
+    right_tokens = set(
+        re.findall(
+            r"[\w'-]+",
+            normalized_right,
+            flags=re.UNICODE,
+        )
+    )
+
+    token_union = left_tokens | right_tokens
+
+    token_jaccard = (
+        len(left_tokens & right_tokens)
+        / len(token_union)
+        if token_union
+        else 0.0
+    )
+
+    length_ratio = (
+        min(
+            len(normalized_left),
+            len(normalized_right),
+        )
+        / max(
+            len(normalized_left),
+            len(normalized_right),
+        )
+    )
+
+    return (
+        sequence_similarity,
+        token_jaccard,
+        length_ratio,
+    )
+
+
+def _load_canonical_page_texts(
+    canonical_pdf_path: Path,
+    page_numbers: Iterable[int],
+) -> dict[int, str]:
+    try:
+        import fitz
+    except ImportError as error:
+        raise RuntimeError(
+            "PyMuPDF is required for native PDF "
+            "text recovery."
+        ) from error
+
+    if not canonical_pdf_path.is_file():
+        raise FileNotFoundError(
+            "Canonical PDF not found: "
+            f"{canonical_pdf_path}"
+        )
+
+    texts: dict[int, str] = {}
+
+    with fitz.open(
+        str(canonical_pdf_path)
+    ) as document:
+        for page_number in sorted(
+            set(page_numbers)
+        ):
+            if not 1 <= page_number <= len(document):
+                continue
+
+            text = clean_ocr_text(
+                document.load_page(
+                    page_number - 1
+                ).get_text("text")
+            )
+
+            if text:
+                texts[page_number] = text
+
+    return texts
+
+
+def _recover_with_canonical_text(
+    *,
+    bda_text: str,
+    bda_decision: OCRQualityDecision,
+    canonical_text: str,
+    expected_language: str,
+    thresholds: OCRQualityThresholds | None,
+) -> tuple[OCRQualityDecision, bool]:
+    canonical_decision = evaluate_ocr_text(
+        canonical_text,
+        expected_language=expected_language,
+        source="canonical_pdf",
+        thresholds=thresholds,
+    )
+
+    if canonical_decision.classification == "PASS":
+        return (
+            replace(
+                canonical_decision,
+                reasons=(
+                    "canonical_pdf_text_recovered",
+                    *canonical_decision.reasons,
+                ),
+            ),
+            True,
+        )
+
+    repetition_reasons = {
+        "runaway_phrase_repetition",
+        "runaway_duplicate_lines",
+    }
+
+    bda_reasons = set(
+        bda_decision.reasons
+    )
+    canonical_reasons = set(
+        canonical_decision.reasons
+    )
+
+    if (
+        not bda_text
+        or not bda_reasons
+        or not canonical_reasons
+        or not bda_reasons.issubset(
+            repetition_reasons
+        )
+        or not canonical_reasons.issubset(
+            repetition_reasons
+        )
+    ):
+        return bda_decision, False
+
+    (
+        sequence_similarity,
+        token_jaccard,
+        length_ratio,
+    ) = _agreement_metrics(
+        bda_text,
+        canonical_text,
+    )
+
+    metrics = canonical_decision.metrics
+
+    independently_verified = (
+        metrics.expected_script_characters >= 40
+        and metrics.script_only_expected_ratio >= 0.90
+        and sequence_similarity >= 0.80
+        and token_jaccard >= 0.60
+        and length_ratio >= 0.70
+    )
+
+    if not independently_verified:
+        return bda_decision, False
+
+    return (
+        replace(
+            canonical_decision,
+            classification="PASS",
+            accepted=True,
+            fallback_recommended=False,
+            reasons=(
+                "canonical_pdf_repetition_verified",
+                "independent_bda_canonical_agreement",
+            ),
+        ),
+        True,
+    )
+
+
 def plan_ocr_fallback(
     records: Sequence[dict[str, Any]],
     *,
     expected_language: str,
     expected_pages: Iterable[int] | None = None,
     thresholds: OCRQualityThresholds | None = None,
+    canonical_pdf_path: Path | None = None,
+    allow_native_text_recovery: bool = False,
 ) -> OCRFallbackPlan:
-    """Evaluate BDA pages and select pages requiring Surya."""
+    """Evaluate BDA pages and select pages requiring Surya.
+
+    Native PDF recovery is opt-in and should only be enabled for a
+    previously verified text-layout textbook.
+    """
+
+    if (
+        allow_native_text_recovery
+        and canonical_pdf_path is None
+    ):
+        raise ValueError(
+            "canonical_pdf_path is required when "
+            "native text recovery is enabled."
+        )
 
     candidates = select_page_candidates(records)
+
+    candidate_by_page = {
+        candidate.canonical_page: candidate
+        for candidate in candidates
+    }
 
     normalized_expected_pages = (
         normalize_expected_pages(expected_pages)
@@ -655,38 +971,118 @@ def plan_ocr_fallback(
     if not normalized_expected_pages:
         normalized_expected_pages = discovered_pages
 
-    missing_pages = tuple(
-        page
-        for page in normalized_expected_pages
-        if page not in set(discovered_pages)
+    pages_to_assess = tuple(
+        sorted(
+            set(discovered_pages)
+            | set(normalized_expected_pages)
+        )
     )
 
-    assessments: list[PageQualityAssessment] = []
+    canonical_texts: dict[int, str] = {}
 
-    for candidate in candidates:
-        decision = evaluate_ocr_text(
-            candidate.clean_text,
+    if allow_native_text_recovery:
+        assert canonical_pdf_path is not None
+
+        canonical_texts = (
+            _load_canonical_page_texts(
+                canonical_pdf_path,
+                pages_to_assess,
+            )
+        )
+
+    assessments: list[
+        PageQualityAssessment
+    ] = []
+
+    canonical_recovered_pages: list[int] = []
+
+    for page_number in pages_to_assess:
+        candidate = candidate_by_page.get(
+            page_number
+        )
+
+        bda_text = (
+            candidate.clean_text
+            if candidate is not None
+            else ""
+        )
+
+        bda_confidence = (
+            candidate.confidence
+            if candidate is not None
+            else None
+        )
+
+        bda_decision = evaluate_ocr_text(
+            bda_text,
             expected_language=expected_language,
             source="bda",
-            confidence=candidate.confidence,
+            confidence=bda_confidence,
             thresholds=thresholds,
         )
 
+        decision = bda_decision
+        recovered = False
+
+        canonical_text = canonical_texts.get(
+            page_number
+        )
+
+        if (
+            canonical_text
+            and bda_decision.classification
+            != "PASS"
+        ):
+            decision, recovered = (
+                _recover_with_canonical_text(
+                    bda_text=bda_text,
+                    bda_decision=bda_decision,
+                    canonical_text=canonical_text,
+                    expected_language=(
+                        expected_language
+                    ),
+                    thresholds=thresholds,
+                )
+            )
+
+        if recovered:
+            canonical_recovered_pages.append(
+                page_number
+            )
+
+        if candidate is None and not recovered:
+            continue
+
         assessments.append(
             PageQualityAssessment(
-                canonical_page=(
-                    candidate.canonical_page
-                ),
+                canonical_page=page_number,
                 source_record_count=(
                     candidate.source_record_count
+                    if candidate is not None
+                    else 0
                 ),
                 text_characters=len(
-                    candidate.clean_text
+                    decision.clean_text
                 ),
-                confidence=candidate.confidence,
+                confidence=(
+                    bda_confidence
+                ),
                 decision=decision,
             )
         )
+
+    recovered_page_set = set(
+        canonical_recovered_pages
+    )
+
+    missing_pages = tuple(
+        page
+        for page in normalized_expected_pages
+        if (
+            page not in set(discovered_pages)
+            and page not in recovered_page_set
+        )
+    )
 
     accepted_bda_pages = tuple(
         assessment.canonical_page
@@ -740,6 +1136,9 @@ def plan_ocr_fallback(
         review_pages=review_pages,
         failed_pages=failed_pages,
         missing_pages=missing_pages,
+        canonical_recovered_pages=tuple(
+            canonical_recovered_pages
+        ),
         assessments=tuple(assessments),
     )
 

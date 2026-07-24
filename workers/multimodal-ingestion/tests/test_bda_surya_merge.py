@@ -381,3 +381,159 @@ def test_unverified_surya_report_is_rejected(
             path,
             fallback_pages=(1,),
         )
+
+
+
+def test_native_pdf_recovery_injects_only_missing_bda_text() -> None:
+    existing_bda = bda_text(
+        "unit-page-1",
+        1,
+        "Existing valid BDA mathematics text.",
+    )
+
+    plan = {
+        "fallback_pages": (),
+        "accepted_bda_pages": (1, 2),
+        "canonical_recovered_pages": (1, 2),
+        "assessments": [],
+    }
+
+    (
+        output,
+        figures,
+        tables,
+        stats,
+    ) = merge_records(
+        content_units=[existing_bda],
+        figures=[],
+        tables=[],
+        plan=plan,
+        surya_pages={},
+        page_lookup={
+            1: page_context(1),
+            2: page_context(
+                2,
+                chapter_id="chapter-01",
+                chapter_title="Patterns",
+            ),
+        },
+        book_id="grade-6-math-test",
+        book_version="v1",
+        source_pdf="/tmp/textbook.pdf",
+        native_pdf_pages={
+            1: "This must not create a duplicate.",
+            2: (
+                "Learning Material Sheets "
+                "Reprint 2026-27"
+            ),
+        },
+    )
+
+    assert figures == []
+    assert tables == []
+    assert len(output) == 2
+
+    bda_units = [
+        record
+        for record in output
+        if record["text_source"] == "bda"
+    ]
+
+    native_units = [
+        record
+        for record in output
+        if (
+            record["text_source"]
+            == "canonical_pdf"
+        )
+    ]
+
+    assert len(bda_units) == 1
+    assert bda_units[0]["unit_id"] == "unit-page-1"
+
+    assert len(native_units) == 1
+    assert native_units[0][
+        "source_page_numbers"
+    ] == [2]
+    assert native_units[0][
+        "search_text"
+    ] == (
+        "Learning Material Sheets "
+        "Reprint 2026-27"
+    )
+    assert native_units[0][
+        "chapter_id"
+    ] == "chapter-01"
+
+    assert stats[
+        "created_native_pdf_text_units"
+    ] == 1
+    assert stats[
+        "created_surya_text_units"
+    ] == 0
+
+
+def test_native_pdf_recovery_requires_text_for_missing_page() -> None:
+    with pytest.raises(
+        ValueError,
+        match="has no native PDF text",
+    ):
+        merge_records(
+            content_units=[],
+            figures=[],
+            tables=[],
+            plan={
+                "fallback_pages": (),
+                "accepted_bda_pages": (1,),
+                "canonical_recovered_pages": (1,),
+                "assessments": [],
+            },
+            surya_pages={},
+            page_lookup={
+                1: page_context(1),
+            },
+            book_id="grade-6-math-test",
+            book_version="v1",
+            source_pdf="/tmp/textbook.pdf",
+            native_pdf_pages={},
+        )
+
+
+def test_load_native_pdf_page_texts(
+    tmp_path: Path,
+) -> None:
+    import fitz
+
+    from src.bda_surya_merge import (
+        load_native_pdf_page_texts,
+    )
+
+    pdf_path = tmp_path / "textbook.pdf"
+
+    document = fitz.open()
+
+    first = document.new_page()
+    first.insert_text(
+        (72, 72),
+        "First textbook page",
+    )
+
+    second = document.new_page()
+    second.insert_text(
+        (72, 72),
+        "Learning Material Sheets Reprint 2026-27",
+    )
+
+    document.save(str(pdf_path))
+    document.close()
+
+    recovered = load_native_pdf_page_texts(
+        str(pdf_path),
+        [2],
+    )
+
+    assert tuple(recovered) == (2,)
+    assert (
+        "Learning Material Sheets"
+        in recovered[2]
+    )

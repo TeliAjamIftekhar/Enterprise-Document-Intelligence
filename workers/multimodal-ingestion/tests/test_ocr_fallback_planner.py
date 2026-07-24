@@ -194,3 +194,204 @@ def test_load_jsonl_records(tmp_path: Path) -> None:
     records = load_normalized_records(source)
 
     assert len(records) == 2
+
+
+
+def test_figure_descriptions_are_excluded_from_quality_text() -> None:
+    valid_text = (
+        "This mathematics lesson explains number "
+        "patterns and asks students to solve the "
+        "given classroom exercises."
+    )
+
+    records = [
+        {
+            "canonical_page": 1,
+            "element_type": "TEXT",
+            "raw_text": valid_text,
+        },
+        {
+            "canonical_page": 1,
+            "element_type": "FIGURE",
+            "raw_text": (
+                "hallucinated repeated phrase " * 20
+            ),
+        },
+    ]
+
+    plan = plan_ocr_fallback(
+        records,
+        expected_language="Mathematics",
+        expected_pages=[1],
+    )
+
+    assert plan.classification == "BDA_ACCEPTED"
+    assert plan.fallback_pages == ()
+
+
+def test_quality_text_uses_one_primary_field() -> None:
+    records = [
+        {
+            "canonical_page": 1,
+            "element_type": "TEXT",
+            "raw_text": (
+                "This complete mathematics paragraph "
+                "contains enough meaningful content "
+                "for a textbook quality check."
+            ),
+            "markdown": (
+                "repeated duplicate phrase " * 20
+            ),
+            "search_text": (
+                "repeated duplicate phrase " * 20
+            ),
+        }
+    ]
+
+    plan = plan_ocr_fallback(
+        records,
+        expected_language="Mathematics",
+        expected_pages=[1],
+    )
+
+    assert plan.classification == "BDA_ACCEPTED"
+    assert plan.fallback_pages == ()
+
+
+def test_native_pdf_recovers_figure_only_text_layout_page(
+    tmp_path: Path,
+) -> None:
+    import fitz
+
+    pdf_path = tmp_path / "textbook.pdf"
+
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text(
+        (72, 72),
+        (
+            "Learning Material Sheets "
+            "Reprint 2026-27"
+        ),
+    )
+    document.save(str(pdf_path))
+    document.close()
+
+    records = [
+        {
+            "canonical_page": 1,
+            "element_type": "FIGURE",
+            "raw_text": "Decorative page image",
+        }
+    ]
+
+    plan = plan_ocr_fallback(
+        records,
+        expected_language="Mathematics",
+        expected_pages=[1],
+        canonical_pdf_path=pdf_path,
+        allow_native_text_recovery=True,
+    )
+
+    assert plan.classification == "BDA_ACCEPTED"
+    assert plan.fallback_pages == ()
+    assert plan.missing_pages == ()
+    assert plan.canonical_recovered_pages == (1,)
+
+
+def test_native_pdf_verifies_legitimate_math_repetition(
+    tmp_path: Path,
+) -> None:
+    import fitz
+
+    repeated = (
+        "The total number of wickets "
+        "The total number of wickets "
+        "The total number of wickets "
+        "The total number of wickets "
+        "The total number of wickets "
+        "The total number of wickets "
+        "Students compare the table and explain "
+        "their mathematical reasoning."
+    )
+
+    pdf_path = tmp_path / "textbook.pdf"
+
+    document = fitz.open()
+    page = document.new_page(
+        width=800,
+        height=1000,
+    )
+    page.insert_textbox(
+        fitz.Rect(50, 50, 750, 950),
+        repeated,
+        fontsize=11,
+    )
+    document.save(str(pdf_path))
+    document.close()
+
+    records = [
+        {
+            "canonical_page": 1,
+            "element_type": "TEXT",
+            "raw_text": repeated,
+        }
+    ]
+
+    plan = plan_ocr_fallback(
+        records,
+        expected_language="Mathematics",
+        expected_pages=[1],
+        canonical_pdf_path=pdf_path,
+        allow_native_text_recovery=True,
+    )
+
+    assert plan.classification == "BDA_ACCEPTED"
+    assert plan.fallback_pages == ()
+    assert plan.canonical_recovered_pages == (1,)
+
+
+
+def test_native_recovery_does_not_replace_passing_bda_text(
+    tmp_path: Path,
+) -> None:
+    import fitz
+
+    pdf_path = tmp_path / "textbook.pdf"
+
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text(
+        (72, 72),
+        (
+            "Canonical mathematics textbook text "
+            "with sufficient meaningful content."
+        ),
+    )
+    document.save(str(pdf_path))
+    document.close()
+
+    records = [
+        {
+            "canonical_page": 1,
+            "element_type": "TEXT",
+            "raw_text": (
+                "This mathematics lesson explains "
+                "number patterns and gives students "
+                "several meaningful exercises."
+            ),
+        }
+    ]
+
+    plan = plan_ocr_fallback(
+        records,
+        expected_language="Mathematics",
+        expected_pages=[1],
+        canonical_pdf_path=pdf_path,
+        allow_native_text_recovery=True,
+    )
+
+    assert plan.classification == "BDA_ACCEPTED"
+    assert plan.accepted_bda_pages == (1,)
+    assert plan.canonical_recovered_pages == ()
+    assert plan.fallback_pages == ()

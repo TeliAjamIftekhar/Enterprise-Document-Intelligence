@@ -146,6 +146,51 @@ def load_json_object(
     return value
 
 
+def inspection_uses_text_layout(
+    path: Path,
+) -> bool:
+    """Return whether inspection approved native text extraction."""
+
+    if not path.is_file():
+        return False
+
+    try:
+        payload = load_json_object(path)
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
+        return False
+
+    routes: list[str] = []
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if (
+                    str(key).casefold()
+                    == "extraction_route"
+                ):
+                    routes.append(
+                        str(child).strip().casefold()
+                    )
+
+                visit(child)
+
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(payload)
+
+    return bool(routes) and all(
+        route == "text-layout"
+        for route in routes
+    )
+
+
 def atomic_write_json(
     path: Path,
     payload: dict[str, Any],
@@ -2661,6 +2706,17 @@ def process_book(
                 "--output",
                 str(paths["ocr_plan"]),
             ]
+
+            if inspection_uses_text_layout(
+                paths["inspection"]
+            ):
+                command.extend(
+                    [
+                        "--canonical-pdf",
+                        str(paths["canonical_pdf"]),
+                        "--allow-native-text-recovery",
+                    ]
+                )
 
             run_command(
                 command,
