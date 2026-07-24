@@ -4,9 +4,12 @@ from pathlib import Path
 import pytest
 
 from scripts.upload_opensearch_bulk import (
+    build_bulk_batches,
+    build_upload_checkpoint,
     resolve_runtime_identity,
     sha256_file,
     validate_preparation,
+    validate_upload_checkpoint,
 )
 
 
@@ -202,4 +205,232 @@ def test_rejects_old_book_version(
             bulk_path=bulk_path,
             preparation_report=report,
             runtime=runtime,
+        )
+
+
+
+def build_test_payload(
+    tmp_path: Path,
+    document_count: int = 4,
+) -> tuple[Path, list[bytes]]:
+    pairs: list[bytes] = []
+
+    for number in range(
+        1,
+        document_count + 1,
+    ):
+        record_id = (
+            f"record-{number}"
+        )
+
+        action = {
+            "index": {
+                "_index": (
+                    "test-index"
+                ),
+                "_id": record_id,
+            }
+        }
+
+        document = {
+            "record_id": record_id,
+            "book_id": "test-book",
+            "book_version": "v1",
+            "text": "x" * (
+                40 + number
+            ),
+        }
+
+        pair = (
+            json.dumps(action)
+            + "\n"
+            + json.dumps(document)
+            + "\n"
+        ).encode("utf-8")
+
+        pairs.append(pair)
+
+    path = tmp_path / "many.ndjson"
+
+    path.write_bytes(
+        b"".join(pairs)
+    )
+
+    return path, pairs
+
+
+def test_build_bulk_batches_preserves_pairs(
+    tmp_path,
+):
+    bulk_path, pairs = (
+        build_test_payload(
+            tmp_path
+        )
+    )
+
+    maximum_pair_size = max(
+        len(pair)
+        for pair in pairs
+    )
+
+    batches = build_bulk_batches(
+        bulk_path=bulk_path,
+        max_batch_bytes=(
+            maximum_pair_size + 1
+        ),
+    )
+
+    assert len(batches) == len(
+        pairs
+    )
+
+    assert sum(
+        batch["document_count"]
+        for batch in batches
+    ) == len(pairs)
+
+    assert b"".join(
+        batch["body"]
+        for batch in batches
+    ) == bulk_path.read_bytes()
+
+    assert all(
+        batch["size_bytes"]
+        <= maximum_pair_size + 1
+        for batch in batches
+    )
+
+
+def test_rejects_oversized_bulk_pair(
+    tmp_path,
+):
+    bulk_path, pairs = (
+        build_test_payload(
+            tmp_path,
+            document_count=1,
+        )
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "single bulk action/document "
+            "pair exceeds"
+        ),
+    ):
+        build_bulk_batches(
+            bulk_path=bulk_path,
+            max_batch_bytes=(
+                len(pairs[0]) - 1
+            ),
+        )
+
+
+def test_validates_matching_upload_checkpoint(
+    tmp_path,
+):
+    bulk_path, _ = (
+        build_test_payload(
+            tmp_path
+        )
+    )
+
+    batches = build_bulk_batches(
+        bulk_path=bulk_path,
+        max_batch_bytes=300,
+    )
+
+    runtime = {
+        "region": "us-east-1",
+        "collection_endpoint": (
+            "https://example.invalid"
+        ),
+        "index_name": "test-index",
+        "book_id": "test-book",
+        "book_version": "v1",
+        "vector_dimensions": 1024,
+    }
+
+    bulk_sha256 = sha256_file(
+        bulk_path
+    )
+
+    checkpoint = (
+        build_upload_checkpoint(
+            runtime=runtime,
+            bulk_sha256=bulk_sha256,
+            expected_document_count=4,
+            max_batch_bytes=300,
+            batches=batches,
+            initial_count=0,
+        )
+    )
+
+    validate_upload_checkpoint(
+        checkpoint,
+        runtime=runtime,
+        bulk_sha256=bulk_sha256,
+        expected_document_count=4,
+        max_batch_bytes=300,
+        batches=batches,
+    )
+
+
+def test_rejects_changed_checkpoint_plan(
+    tmp_path,
+):
+    bulk_path, _ = (
+        build_test_payload(
+            tmp_path
+        )
+    )
+
+    batches = build_bulk_batches(
+        bulk_path=bulk_path,
+        max_batch_bytes=300,
+    )
+
+    runtime = {
+        "region": "us-east-1",
+        "collection_endpoint": (
+            "https://example.invalid"
+        ),
+        "index_name": "test-index",
+        "book_id": "test-book",
+        "book_version": "v1",
+        "vector_dimensions": 1024,
+    }
+
+    bulk_sha256 = sha256_file(
+        bulk_path
+    )
+
+    checkpoint = (
+        build_upload_checkpoint(
+            runtime=runtime,
+            bulk_sha256=bulk_sha256,
+            expected_document_count=4,
+            max_batch_bytes=300,
+            batches=batches,
+            initial_count=0,
+        )
+    )
+
+    checkpoint[
+        "batching"
+    ]["plan"][0]["sha256"] = "tampered"
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "batching plan does not match"
+        ),
+    ):
+        validate_upload_checkpoint(
+            checkpoint,
+            runtime=runtime,
+            bulk_sha256=bulk_sha256,
+            expected_document_count=4,
+            max_batch_bytes=300,
+            batches=batches,
         )

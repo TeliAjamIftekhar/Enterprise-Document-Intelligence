@@ -48,6 +48,14 @@ RETRYABLE_HTTP_STATUS = {
 
 
 
+
+DEFAULT_MAX_BATCH_BYTES = (
+    5 * 1024 * 1024
+)
+
+CHECKPOINT_SCHEMA_VERSION = "1.0"
+
+
 def resolve_runtime_identity(
     config_path: Path | None,
 ) -> dict[str, Any]:
@@ -788,6 +796,575 @@ def parse_bulk_result(
     }
 
 
+
+def build_bulk_batches(
+    bulk_path: Path,
+    max_batch_bytes: int,
+) -> list[dict[str, Any]]:
+    if max_batch_bytes < 1:
+        raise ValueError(
+            "max_batch_bytes must be positive."
+        )
+
+    payload = bulk_path.read_bytes()
+
+    if not payload:
+        raise RuntimeError(
+            "Bulk payload is empty."
+        )
+
+    if not payload.endswith(b"\n"):
+        raise RuntimeError(
+            "Bulk payload does not end "
+            "with newline."
+        )
+
+    lines = payload.splitlines(
+        keepends=True
+    )
+
+    if len(lines) % 2 != 0:
+        raise RuntimeError(
+            "Bulk payload must contain "
+            "action/document line pairs."
+        )
+
+    batches: list[
+        dict[str, Any]
+    ] = []
+
+    current_parts: list[bytes] = []
+    current_size = 0
+    current_documents = 0
+
+    def flush_batch() -> None:
+        nonlocal current_parts
+        nonlocal current_size
+        nonlocal current_documents
+
+        if not current_parts:
+            return
+
+        body = b"".join(
+            current_parts
+        )
+
+        batches.append(
+            {
+                "batch_number": (
+                    len(batches) + 1
+                ),
+                "document_count": (
+                    current_documents
+                ),
+                "size_bytes": len(body),
+                "sha256": sha256_bytes(
+                    body
+                ),
+                "body": body,
+            }
+        )
+
+        current_parts = []
+        current_size = 0
+        current_documents = 0
+
+    for position in range(
+        0,
+        len(lines),
+        2,
+    ):
+        pair = (
+            lines[position]
+            + lines[position + 1]
+        )
+
+        pair_number = (
+            position // 2 + 1
+        )
+
+        if len(pair) > max_batch_bytes:
+            raise RuntimeError(
+                "A single bulk action/document "
+                "pair exceeds the configured "
+                "batch limit: "
+                f"pair={pair_number}, "
+                f"size={len(pair)}, "
+                f"limit={max_batch_bytes}"
+            )
+
+        if (
+            current_parts
+            and current_size + len(pair)
+            > max_batch_bytes
+        ):
+            flush_batch()
+
+        current_parts.append(pair)
+        current_size += len(pair)
+        current_documents += 1
+
+    flush_batch()
+
+    if not batches:
+        raise RuntimeError(
+            "No bulk batches were produced."
+        )
+
+    return batches
+
+
+def build_batch_plan(
+    batches: list[
+        dict[str, Any]
+    ],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "batch_number": int(
+                batch["batch_number"]
+            ),
+            "document_count": int(
+                batch["document_count"]
+            ),
+            "size_bytes": int(
+                batch["size_bytes"]
+            ),
+            "sha256": str(
+                batch["sha256"]
+            ),
+        }
+        for batch in batches
+    ]
+
+
+def checkpoint_runtime_identity(
+    runtime: dict[str, Any],
+) -> dict[str, Any]:
+    fields = (
+        "region",
+        "collection_endpoint",
+        "index_name",
+        "book_id",
+        "book_version",
+        "vector_dimensions",
+    )
+
+    return {
+        field: runtime[field]
+        for field in fields
+    }
+
+
+def build_upload_checkpoint(
+    *,
+    runtime: dict[str, Any],
+    bulk_sha256: str,
+    expected_document_count: int,
+    max_batch_bytes: int,
+    batches: list[
+        dict[str, Any]
+    ],
+    initial_count: int,
+) -> dict[str, Any]:
+    now = utc_now()
+
+    return {
+        "schema_version": (
+            CHECKPOINT_SCHEMA_VERSION
+        ),
+        "status": "IN_PROGRESS",
+        "started_at": now,
+        "updated_at": now,
+        "runtime_identity": (
+            checkpoint_runtime_identity(
+                runtime
+            )
+        ),
+        "bulk_payload": {
+            "sha256": bulk_sha256,
+            "expected_document_count": (
+                expected_document_count
+            ),
+        },
+        "batching": {
+            "max_batch_bytes": (
+                max_batch_bytes
+            ),
+            "batch_count": len(
+                batches
+            ),
+            "plan": build_batch_plan(
+                batches
+            ),
+        },
+        "initial_count": initial_count,
+        "completed_batches": {},
+    }
+
+
+def validate_upload_checkpoint(
+    checkpoint: dict[str, Any],
+    *,
+    runtime: dict[str, Any],
+    bulk_sha256: str,
+    expected_document_count: int,
+    max_batch_bytes: int,
+    batches: list[
+        dict[str, Any]
+    ],
+) -> None:
+    if checkpoint.get(
+        "schema_version"
+    ) != CHECKPOINT_SCHEMA_VERSION:
+        raise RuntimeError(
+            "Upload checkpoint schema "
+            "version mismatch."
+        )
+
+    if checkpoint.get(
+        "status"
+    ) not in {
+        "IN_PROGRESS",
+        "COMPLETED",
+    }:
+        raise RuntimeError(
+            "Upload checkpoint status "
+            "is invalid."
+        )
+
+    expected_runtime = (
+        checkpoint_runtime_identity(
+            runtime
+        )
+    )
+
+    if checkpoint.get(
+        "runtime_identity"
+    ) != expected_runtime:
+        raise RuntimeError(
+            "Upload checkpoint runtime "
+            "identity does not match."
+        )
+
+    payload = checkpoint.get(
+        "bulk_payload"
+    )
+
+    if not isinstance(
+        payload,
+        dict,
+    ):
+        raise RuntimeError(
+            "Upload checkpoint contains "
+            "no bulk payload identity."
+        )
+
+    if payload.get(
+        "sha256"
+    ) != bulk_sha256:
+        raise RuntimeError(
+            "Upload checkpoint bulk "
+            "checksum does not match."
+        )
+
+    if payload.get(
+        "expected_document_count"
+    ) != expected_document_count:
+        raise RuntimeError(
+            "Upload checkpoint document "
+            "count does not match."
+        )
+
+    batching = checkpoint.get(
+        "batching"
+    )
+
+    if not isinstance(
+        batching,
+        dict,
+    ):
+        raise RuntimeError(
+            "Upload checkpoint contains "
+            "no batching plan."
+        )
+
+    expected_plan = build_batch_plan(
+        batches
+    )
+
+    if batching.get(
+        "max_batch_bytes"
+    ) != max_batch_bytes:
+        raise RuntimeError(
+            "Upload checkpoint batch size "
+            "does not match."
+        )
+
+    if batching.get(
+        "batch_count"
+    ) != len(batches):
+        raise RuntimeError(
+            "Upload checkpoint batch count "
+            "does not match."
+        )
+
+    if batching.get(
+        "plan"
+    ) != expected_plan:
+        raise RuntimeError(
+            "Upload checkpoint batching "
+            "plan does not match."
+        )
+
+    initial_count = checkpoint.get(
+        "initial_count"
+    )
+
+    if (
+        not isinstance(
+            initial_count,
+            int,
+        )
+        or initial_count < 0
+        or initial_count
+        > expected_document_count
+    ):
+        raise RuntimeError(
+            "Upload checkpoint initial "
+            "document count is invalid."
+        )
+
+    completed = checkpoint.get(
+        "completed_batches"
+    )
+
+    if not isinstance(
+        completed,
+        dict,
+    ):
+        raise RuntimeError(
+            "Upload checkpoint completed "
+            "batch map is invalid."
+        )
+
+    planned = {
+        f"{item['batch_number']:04d}": item
+        for item in expected_plan
+    }
+
+    for key, entry in (
+        completed.items()
+    ):
+        if key not in planned:
+            raise RuntimeError(
+                "Upload checkpoint contains "
+                f"unknown batch {key}."
+            )
+
+        if not isinstance(
+            entry,
+            dict,
+        ):
+            raise RuntimeError(
+                "Upload checkpoint batch "
+                f"{key} is invalid."
+            )
+
+        if entry.get(
+            "status"
+        ) != "COMPLETED":
+            raise RuntimeError(
+                "Upload checkpoint batch "
+                f"{key} is not COMPLETED."
+            )
+
+        expected = planned[key]
+
+        for field in (
+            "document_count",
+            "size_bytes",
+            "sha256",
+        ):
+            if entry.get(
+                field
+            ) != expected[field]:
+                raise RuntimeError(
+                    "Upload checkpoint batch "
+                    f"{key} {field} mismatch."
+                )
+
+        result = entry.get(
+            "bulk_result"
+        )
+
+        if not isinstance(
+            result,
+            dict,
+        ):
+            raise RuntimeError(
+                "Upload checkpoint batch "
+                f"{key} has no bulk result."
+            )
+
+        if result.get(
+            "item_count"
+        ) != expected[
+            "document_count"
+        ]:
+            raise RuntimeError(
+                "Upload checkpoint batch "
+                f"{key} item count mismatch."
+            )
+
+        if result.get(
+            "unique_returned_ids"
+        ) != expected[
+            "document_count"
+        ]:
+            raise RuntimeError(
+                "Upload checkpoint batch "
+                f"{key} unique ID count "
+                "mismatch."
+            )
+
+        if (
+            result.get(
+                "failure_count"
+            )
+            != 0
+            or result.get(
+                "bulk_errors_flag"
+            )
+            is True
+        ):
+            raise RuntimeError(
+                "Upload checkpoint batch "
+                f"{key} contains failures."
+            )
+
+
+def aggregate_completed_batches(
+    checkpoint: dict[str, Any],
+    batches: list[
+        dict[str, Any]
+    ],
+) -> dict[str, Any]:
+    completed = checkpoint[
+        "completed_batches"
+    ]
+
+    status_counts: dict[
+        str,
+        int,
+    ] = {}
+
+    result_counts: dict[
+        str,
+        int,
+    ] = {}
+
+    item_count = 0
+    unique_returned_ids = 0
+    failure_count = 0
+    failures: list[
+        dict[str, Any]
+    ] = []
+
+    for batch in batches:
+        key = (
+            f"{batch['batch_number']:04d}"
+        )
+
+        entry = completed.get(key)
+
+        if not isinstance(
+            entry,
+            dict,
+        ):
+            raise RuntimeError(
+                "Completed upload is missing "
+                f"batch {key}."
+            )
+
+        result = entry[
+            "bulk_result"
+        ]
+
+        item_count += int(
+            result["item_count"]
+        )
+
+        unique_returned_ids += int(
+            result[
+                "unique_returned_ids"
+            ]
+        )
+
+        failure_count += int(
+            result["failure_count"]
+        )
+
+        failures.extend(
+            result.get(
+                "failures",
+                [],
+            )
+        )
+
+        for status, count in (
+            result.get(
+                "status_counts",
+                {},
+            ).items()
+        ):
+            status_counts[
+                str(status)
+            ] = (
+                status_counts.get(
+                    str(status),
+                    0,
+                )
+                + int(count)
+            )
+
+        for result_name, count in (
+            result.get(
+                "result_counts",
+                {},
+            ).items()
+        ):
+            result_counts[
+                str(result_name)
+            ] = (
+                result_counts.get(
+                    str(result_name),
+                    0,
+                )
+                + int(count)
+            )
+
+    return {
+        "item_count": item_count,
+        "unique_returned_ids": (
+            unique_returned_ids
+        ),
+        "status_counts": (
+            status_counts
+        ),
+        "result_counts": (
+            result_counts
+        ),
+        "failure_count": (
+            failure_count
+        ),
+        "failures": failures,
+        "bulk_errors_flag": (
+            failure_count > 0
+        ),
+    }
+
+
 def get_book_count(
     http: urllib3.PoolManager,
 ) -> tuple[int, dict[str, Any]]:
@@ -882,11 +1459,13 @@ def wait_for_document_count(
     )
 
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Upload a validated NDJSON bulk payload "
-            "to OpenSearch Serverless."
+            "Upload a validated NDJSON bulk "
+            "payload to OpenSearch Serverless "
+            "using resumable batches."
         )
     )
 
@@ -919,6 +1498,17 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
+    parser.add_argument(
+        "--max-batch-bytes",
+        type=int,
+        default=DEFAULT_MAX_BATCH_BYTES,
+        help=(
+            "Maximum NDJSON bytes per request. "
+            "Action/document pairs are never "
+            "split. Default: 5 MiB."
+        ),
+    )
+
     return parser.parse_args()
 
 
@@ -935,6 +1525,12 @@ def main() -> int:
             f"{args.bulk_path}"
         )
 
+    if args.max_batch_bytes < 1:
+        raise ValueError(
+            "--max-batch-bytes must be "
+            "positive."
+        )
+
     preparation_report = load_json(
         args.preparation_report
     )
@@ -949,7 +1545,37 @@ def main() -> int:
         )
     )
 
-    bulk_body = args.bulk_path.read_bytes()
+    bulk_sha256 = sha256_file(
+        args.bulk_path
+    )
+
+    payload_size = (
+        args.bulk_path.stat().st_size
+    )
+
+    batches = build_bulk_batches(
+        bulk_path=args.bulk_path,
+        max_batch_bytes=(
+            args.max_batch_bytes
+        ),
+    )
+
+    planned_document_count = sum(
+        int(batch["document_count"])
+        for batch in batches
+    )
+
+    if (
+        planned_document_count
+        != expected_document_count
+    ):
+        raise RuntimeError(
+            "Batch plan document count "
+            "does not match prepared count: "
+            f"planned={planned_document_count}, "
+            f"expected="
+            f"{expected_document_count}"
+        )
 
     args.output_dir.mkdir(
         parents=True,
@@ -961,9 +1587,24 @@ def main() -> int:
         / "bulk-response.json"
     )
 
+    response_directory = (
+        args.output_dir
+        / "bulk-responses"
+    )
+
+    response_directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     report_path = (
         args.output_dir
         / "bulk-upload-report.json"
+    )
+
+    checkpoint_path = (
+        args.output_dir
+        / "bulk-upload-checkpoint.json"
     )
 
     http = urllib3.PoolManager(
@@ -974,155 +1615,380 @@ def main() -> int:
         retries=False,
     )
 
-    print("============================================")
-    print("OPENSEARCH BULK UPLOAD")
-    print("============================================")
+    print(
+        "============================================"
+    )
+    print(
+        "OPENSEARCH RESUMABLE BULK UPLOAD"
+    )
+    print(
+        "============================================"
+    )
     print(
         f"Mode:           {runtime['mode']}"
     )
     print(
         f"Endpoint:       {COLLECTION_ENDPOINT}"
     )
-    print(f"Index:          {INDEX_NAME}")
     print(
-        f"Documents:      {expected_document_count}"
+        f"Index:          {INDEX_NAME}"
     )
     print(
-        f"Payload size:   {len(bulk_body):,} bytes"
+        f"Documents:      "
+        f"{expected_document_count}"
     )
     print(
-        f"Payload SHA256: {sha256_bytes(bulk_body)}"
+        f"Payload size:   "
+        f"{payload_size:,} bytes"
+    )
+    print(
+        f"Payload SHA256: {bulk_sha256}"
+    )
+    print(
+        f"Batch limit:    "
+        f"{args.max_batch_bytes:,} bytes"
+    )
+    print(
+        f"Batch count:    {len(batches)}"
     )
     print("Signing service:aoss")
     print()
 
-    initial_status, initial_count_response = (
-        get_book_count(http)
-    )
+    if checkpoint_path.exists():
+        checkpoint = load_json(
+            checkpoint_path
+        )
 
-    initial_count = (
-        initial_count_response.get("count")
-        if initial_status >= 200
-        and initial_status < 300
-        else None
+        validate_upload_checkpoint(
+            checkpoint,
+            runtime=runtime,
+            bulk_sha256=bulk_sha256,
+            expected_document_count=(
+                expected_document_count
+            ),
+            max_batch_bytes=(
+                args.max_batch_bytes
+            ),
+            batches=batches,
+        )
+
+        print(
+            "Resume checkpoint: found"
+        )
+
+    else:
+        initial_status, response = (
+            get_book_count(http)
+        )
+
+        if (
+            initial_status < 200
+            or initial_status >= 300
+        ):
+            raise RuntimeError(
+                "Initial OpenSearch count "
+                f"failed with HTTP "
+                f"{initial_status}: "
+                f"{json.dumps(response)}"
+            )
+
+        initial_count = response.get(
+            "count"
+        )
+
+        if (
+            not isinstance(
+                initial_count,
+                int,
+            )
+            or initial_count < 0
+            or initial_count
+            > expected_document_count
+        ):
+            raise RuntimeError(
+                "Initial OpenSearch count "
+                "is invalid: "
+                f"{initial_count}"
+            )
+
+        checkpoint = (
+            build_upload_checkpoint(
+                runtime=runtime,
+                bulk_sha256=bulk_sha256,
+                expected_document_count=(
+                    expected_document_count
+                ),
+                max_batch_bytes=(
+                    args.max_batch_bytes
+                ),
+                batches=batches,
+                initial_count=(
+                    initial_count
+                ),
+            )
+        )
+
+        atomic_write_json(
+            checkpoint_path,
+            checkpoint,
+        )
+
+        print(
+            "Resume checkpoint: created"
+        )
+
+    initial_count = int(
+        checkpoint["initial_count"]
     )
 
     print(
         f"Initial count:  {initial_count}"
     )
-    print("Sending bulk request...")
+    print()
 
-    started_at = time.monotonic()
+    skipped_batches = 0
+    sent_batches = 0
 
-    bulk_status, bulk_response = signed_request(
-        http=http,
-        method="POST",
-        path="_bulk",
-        body=bulk_body,
-        content_type=(
-            "application/x-ndjson"
-        ),
-    )
+    for batch in batches:
+        number = int(
+            batch["batch_number"]
+        )
 
-    duration_seconds = (
-        time.monotonic() - started_at
-    )
+        key = f"{number:04d}"
 
-    atomic_write_json(
-        response_path,
-        bulk_response,
-    )
+        existing = checkpoint[
+            "completed_batches"
+        ].get(key)
 
-    if (
-        bulk_status < 200
-        or bulk_status >= 300
-    ):
-        raise RuntimeError(
-            "Bulk request failed with HTTP "
-            f"{bulk_status}:\n"
-            + json.dumps(
-                bulk_response,
-                indent=2,
-                default=str,
+        if isinstance(
+            existing,
+            dict,
+        ):
+            skipped_batches += 1
+
+            print(
+                f"Batch {number}/"
+                f"{len(batches)}: "
+                "already completed; skipped"
+            )
+
+            continue
+
+        body = batch["body"]
+
+        print(
+            f"Batch {number}/"
+            f"{len(batches)}: "
+            f"{batch['document_count']} docs, "
+            f"{batch['size_bytes']:,} bytes"
+        )
+
+        started_at = time.monotonic()
+
+        bulk_status, bulk_response = (
+            signed_request(
+                http=http,
+                method="POST",
+                path="_bulk",
+                body=body,
+                content_type=(
+                    "application/x-ndjson"
+                ),
             )
         )
 
-    parsed_bulk = parse_bulk_result(
-        bulk_response
+        duration_seconds = (
+            time.monotonic()
+            - started_at
+        )
+
+        batch_response_path = (
+            response_directory
+            / f"batch-{number:04d}.json"
+        )
+
+        atomic_write_json(
+            batch_response_path,
+            bulk_response,
+        )
+
+        if (
+            bulk_status < 200
+            or bulk_status >= 300
+        ):
+            raise RuntimeError(
+                "Bulk batch failed with HTTP "
+                f"{bulk_status}: "
+                f"batch={number}"
+            )
+
+        parsed_bulk = parse_bulk_result(
+            bulk_response
+        )
+
+        parsed_bulk[
+            "bulk_errors_flag"
+        ] = (
+            bulk_response.get(
+                "errors"
+            )
+            is True
+        )
+
+        if (
+            parsed_bulk["item_count"]
+            != batch["document_count"]
+        ):
+            raise RuntimeError(
+                "Bulk batch response item "
+                "count differs from expected: "
+                f"batch={number}, "
+                f"actual="
+                f"{parsed_bulk['item_count']}, "
+                f"expected="
+                f"{batch['document_count']}"
+            )
+
+        if (
+            parsed_bulk[
+                "unique_returned_ids"
+            ]
+            != batch["document_count"]
+        ):
+            raise RuntimeError(
+                "Bulk batch did not return "
+                "the expected unique IDs: "
+                f"batch={number}"
+            )
+
+        if (
+            parsed_bulk[
+                "failure_count"
+            ]
+            > 0
+            or parsed_bulk[
+                "bulk_errors_flag"
+            ]
+        ):
+            raise RuntimeError(
+                "One or more items failed "
+                f"in batch {number}:\n"
+                + json.dumps(
+                    parsed_bulk,
+                    indent=2,
+                    default=str,
+                )
+            )
+
+        checkpoint[
+            "completed_batches"
+        ][key] = {
+            "status": "COMPLETED",
+            "completed_at": utc_now(),
+            "batch_number": number,
+            "document_count": int(
+                batch["document_count"]
+            ),
+            "size_bytes": int(
+                batch["size_bytes"]
+            ),
+            "sha256": str(
+                batch["sha256"]
+            ),
+            "http_status": (
+                bulk_status
+            ),
+            "duration_seconds": (
+                duration_seconds
+            ),
+            "response_path": str(
+                batch_response_path
+            ),
+            "bulk_result": parsed_bulk,
+        }
+
+        checkpoint[
+            "updated_at"
+        ] = utc_now()
+
+        atomic_write_json(
+            checkpoint_path,
+            checkpoint,
+        )
+
+        sent_batches += 1
+
+        print(
+            f"  HTTP status: {bulk_status}"
+        )
+        print(
+            "  Result counts: "
+            f"{parsed_bulk['result_counts']}"
+        )
+        print(
+            "  Item failures: "
+            f"{parsed_bulk['failure_count']}"
+        )
+        print(
+            f"  Checkpoint: saved"
+        )
+
+    validate_upload_checkpoint(
+        checkpoint,
+        runtime=runtime,
+        bulk_sha256=bulk_sha256,
+        expected_document_count=(
+            expected_document_count
+        ),
+        max_batch_bytes=(
+            args.max_batch_bytes
+        ),
+        batches=batches,
     )
 
-    if bulk_response.get(
-        "errors"
-    ) is True:
-        parsed_bulk["bulk_errors_flag"] = True
-
-    else:
-        parsed_bulk["bulk_errors_flag"] = False
+    aggregate = (
+        aggregate_completed_batches(
+            checkpoint,
+            batches,
+        )
+    )
 
     if (
-        parsed_bulk["item_count"]
+        aggregate["item_count"]
         != expected_document_count
     ):
         raise RuntimeError(
-            "Bulk response item count differs "
-            f"from expected: "
-            f"{parsed_bulk['item_count']}"
+            "Aggregated bulk item count "
+            "does not match expected count."
         )
 
     if (
-        parsed_bulk["unique_returned_ids"]
+        aggregate[
+            "unique_returned_ids"
+        ]
         != expected_document_count
     ):
         raise RuntimeError(
-            "Bulk response did not return "
-            f"{expected_document_count} unique "
-            "document IDs."
+            "Aggregated unique ID count "
+            "does not match expected count."
         )
 
     if (
-        parsed_bulk["failure_count"] > 0
-        or parsed_bulk[
+        aggregate["failure_count"] > 0
+        or aggregate[
             "bulk_errors_flag"
         ]
     ):
         raise RuntimeError(
-            "One or more bulk items failed:\n"
-            + json.dumps(
-                parsed_bulk,
-                indent=2,
-                default=str,
-            )
+            "Aggregated bulk result "
+            "contains failures."
         )
-
-    print(
-        "Bulk HTTP status:",
-        bulk_status,
-    )
-    print(
-        "Bulk items:      ",
-        parsed_bulk["item_count"],
-    )
-    print(
-        "Status counts:   ",
-        parsed_bulk["status_counts"],
-    )
-    print(
-        "Result counts:   ",
-        parsed_bulk["result_counts"],
-    )
-    print(
-        "Item failures:   ",
-        parsed_bulk["failure_count"],
-    )
-    print()
-
-    result_counts = parsed_bulk[
-        "result_counts"
-    ]
 
     counted_results = sum(
         int(value)
-        for value in result_counts.values()
+        for value in aggregate[
+            "result_counts"
+        ].values()
     )
 
     if (
@@ -1130,14 +1996,14 @@ def main() -> int:
         != expected_document_count
     ):
         raise RuntimeError(
-            "Bulk result counts do not match "
-            "the expected document count: "
-            f"results={counted_results}, "
-            f"expected={expected_document_count}"
+            "Aggregated result counts "
+            "do not match expected count."
         )
 
     created_document_count = int(
-        result_counts.get(
+        aggregate[
+            "result_counts"
+        ].get(
             "created",
             0,
         )
@@ -1148,20 +2014,11 @@ def main() -> int:
         - created_document_count
     )
 
-    if not isinstance(
-        initial_count,
-        int,
-    ):
-        raise RuntimeError(
-            "Initial OpenSearch count is not "
-            f"an integer: {initial_count}"
-        )
-
     expected_final_count = (
-        initial_count
-        + created_document_count
+        expected_document_count
     )
 
+    print()
     print(
         f"Created documents: "
         f"{created_document_count}"
@@ -1175,8 +2032,9 @@ def main() -> int:
         f"{expected_final_count}"
     )
     print()
-
-    print("Waiting for searchable documents...")
+    print(
+        "Waiting for searchable documents..."
+    )
 
     count_status, count_response = (
         wait_for_document_count(
@@ -1191,8 +2049,78 @@ def main() -> int:
         "count"
     )
 
-    report = {
+    completed_entries = [
+        checkpoint[
+            "completed_batches"
+        ][
+            f"{batch['batch_number']:04d}"
+        ]
+        for batch in batches
+    ]
+
+    total_duration = sum(
+        float(
+            entry[
+                "duration_seconds"
+            ]
+        )
+        for entry in completed_entries
+    )
+
+    response_summary = {
         "schema_version": "1.0",
+        "errors": False,
+        "batch_count": len(
+            batches
+        ),
+        "aggregate": aggregate,
+        "batches": [
+            {
+                "batch_number": (
+                    entry[
+                        "batch_number"
+                    ]
+                ),
+                "document_count": (
+                    entry[
+                        "document_count"
+                    ]
+                ),
+                "size_bytes": (
+                    entry["size_bytes"]
+                ),
+                "sha256": (
+                    entry["sha256"]
+                ),
+                "http_status": (
+                    entry[
+                        "http_status"
+                    ]
+                ),
+                "duration_seconds": (
+                    entry[
+                        "duration_seconds"
+                    ]
+                ),
+                "response_path": (
+                    entry[
+                        "response_path"
+                    ]
+                ),
+            }
+            for entry in (
+                completed_entries
+            )
+        ],
+    }
+
+    atomic_write_json(
+        response_path,
+        response_summary,
+    )
+
+    report = {
+        "schema_version": "1.1",
         "generated_at": utc_now(),
         "status": "COMPLETED",
         "configuration": runtime,
@@ -1205,15 +2133,32 @@ def main() -> int:
         "book_id": BOOK_ID,
         "book_version": BOOK_VERSION,
         "bulk_payload": {
-            "path": str(args.bulk_path),
-            "sha256": sha256_bytes(
-                bulk_body
+            "path": str(
+                args.bulk_path
             ),
-            "size_bytes": len(
-                bulk_body
+            "sha256": bulk_sha256,
+            "size_bytes": (
+                payload_size
             ),
             "expected_document_count": (
                 expected_document_count
+            ),
+        },
+        "batching": {
+            "max_batch_bytes": (
+                args.max_batch_bytes
+            ),
+            "batch_count": len(
+                batches
+            ),
+            "sent_batches_this_run": (
+                sent_batches
+            ),
+            "resumed_batches_this_run": (
+                skipped_batches
+            ),
+            "plan": build_batch_plan(
+                batches
             ),
         },
         "initial_count": initial_count,
@@ -1229,17 +2174,23 @@ def main() -> int:
         "expected_final_count": (
             expected_final_count
         ),
-        "bulk_http_status": bulk_status,
+        "bulk_http_status": 200,
         "bulk_duration_seconds": (
-            duration_seconds
+            total_duration
         ),
-        "bulk_result": parsed_bulk,
+        "bulk_result": aggregate,
         "final_count_http_status": (
             count_status
         ),
         "final_count": final_count,
         "bulk_response_path": str(
             response_path
+        ),
+        "batch_response_directory": (
+            str(response_directory)
+        ),
+        "checkpoint_path": str(
+            checkpoint_path
         ),
         "uploaded": True,
     }
@@ -1249,39 +2200,88 @@ def main() -> int:
         report,
     )
 
+    checkpoint[
+        "status"
+    ] = "COMPLETED"
+
+    checkpoint[
+        "updated_at"
+    ] = utc_now()
+
+    checkpoint[
+        "completed_at"
+    ] = utc_now()
+
+    checkpoint[
+        "final_count"
+    ] = final_count
+
+    checkpoint[
+        "report_path"
+    ] = str(report_path)
+
+    atomic_write_json(
+        checkpoint_path,
+        checkpoint,
+    )
+
     print()
-    print("============================================")
-    print("BULK UPLOAD COMPLETED")
-    print("============================================")
+    print(
+        "============================================"
+    )
+    print(
+        "RESUMABLE BULK UPLOAD COMPLETED"
+    )
+    print(
+        "============================================"
+    )
     print(
         f"Documents accepted: "
-        f"{parsed_bulk['item_count']}"
+        f"{aggregate['item_count']}"
     )
     print(
         f"Unique IDs:         "
-        f"{parsed_bulk['unique_returned_ids']}"
+        f"{aggregate['unique_returned_ids']}"
     )
     print(
         f"Item failures:      "
-        f"{parsed_bulk['failure_count']}"
+        f"{aggregate['failure_count']}"
     )
     print(
-        f"Initial count:      {initial_count}"
+        f"Initial count:      "
+        f"{initial_count}"
     )
     print(
-        f"Final count:        {final_count}"
+        f"Final count:        "
+        f"{final_count}"
+    )
+    print(
+        f"Batches sent:       "
+        f"{sent_batches}"
+    )
+    print(
+        f"Batches resumed:    "
+        f"{skipped_batches}"
     )
     print(
         f"Bulk duration:      "
-        f"{duration_seconds:.2f}s"
+        f"{total_duration:.2f}s"
     )
     print(
-        f"Response:           {response_path}"
+        f"Response summary:   "
+        f"{response_path}"
     )
     print(
-        f"Report:             {report_path}"
+        f"Checkpoint:         "
+        f"{checkpoint_path}"
     )
-    print("Uploaded:           True")
+    print(
+        f"Report:             "
+        f"{report_path}"
+    )
+    print(
+        "Uploaded:           True"
+    )
 
     return 0
 
