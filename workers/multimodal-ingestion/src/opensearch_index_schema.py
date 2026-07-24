@@ -385,6 +385,7 @@ def resolve_index_runtime(
 
     output_path = (
         Path(config.storage.local_root)
+        / "unified-normalized"
         / "opensearch-serverless"
         / "index-provisioning-report.json"
     )

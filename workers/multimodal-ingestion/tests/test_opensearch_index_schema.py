@@ -57,6 +57,7 @@ def test_resolves_chapter_test_runtime():
         "data/multimodal-output/"
         "grade-9-english-kaveri/"
         "v1-chapter-test/"
+        "unified-normalized/"
         "opensearch-serverless/"
         "index-provisioning-report.json"
     )

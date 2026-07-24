@@ -54,6 +54,7 @@ def test_configure_runtime_uses_chapter_index():
                 "data/multimodal-output/"
                 "grade-9-english-kaveri/"
                 "v1-chapter-test/"
+                "unified-normalized/"
                 "opensearch-serverless/"
                 "index-provisioning-report.json"
             )
