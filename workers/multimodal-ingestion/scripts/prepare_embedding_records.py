@@ -116,13 +116,16 @@ def is_low_information_text(
     if LOW_INFORMATION_PATTERN.fullmatch(cleaned):
         return True
 
-    alphanumeric = re.sub(
-        r"[^A-Za-z0-9]+",
-        "",
-        cleaned,
+    # Count Unicode letters and numbers rather
+    # than only ASCII A-Z/0-9. This preserves
+    # Devanagari, Arabic-script Urdu, superscript
+    # digits and other textbook writing systems.
+    alphanumeric_count = sum(
+        character.isalnum()
+        for character in cleaned
     )
 
-    if len(alphanumeric) < 3:
+    if alphanumeric_count < 3:
         return True
 
     return False

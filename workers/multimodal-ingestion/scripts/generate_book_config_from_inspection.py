@@ -15,6 +15,13 @@ import fitz
 
 from src.book_config import BookConfig
 from src.chapter_manifest import ChapterManifest
+from src.processing_adapters import (
+    adapter_runtime_metadata,
+    resolve_processing_adapter_for_book,
+)
+from src.title_safety import (
+    finalize_inferred_title,
+)
 
 
 CONFIG_ROOT = Path(
@@ -1532,6 +1539,12 @@ def main() -> int:
         args.book_id,
     )
 
+    adapter = (
+        resolve_processing_adapter_for_book(
+            book
+        )
+    )
+
     inspected_book_id = (
         inspection.get(
             "book",
@@ -1815,6 +1828,11 @@ def main() -> int:
                     unit_number
                 )
 
+                fallback_title = (
+                    f"{adapter.title_fallback_label} "
+                    f"{unit_number}"
+                )
+
                 inferred = (
                     extract_layout_title(
                         archive,
@@ -1856,16 +1874,9 @@ def main() -> int:
                         inferred = (
                             infer_document_title(
                                 sample_lines,
-                                fallback=(
-                                    f"{book['title']} "
-                                    f"Unit {unit_number}"
-                                ),
+                                fallback=fallback_title,
                             )
                         )
-
-                chapter_title = str(
-                    inferred["title"]
-                )
 
                 if chapter_structure is not None:
                     chapters = [
@@ -1919,7 +1930,20 @@ def main() -> int:
                         )
                     )
 
-                else:
+                inferred = (
+                    finalize_inferred_title(
+                        inferred,
+                        fallback=fallback_title,
+                        book_title=book["title"],
+                        grade=book["grade"],
+                    )
+                )
+
+                chapter_title = str(
+                    inferred["title"]
+                )
+
+                if chapter_structure is None:
                     chapters = [{
                         "chapter_id": (
                             f"unit-{unit_number}"
@@ -1981,6 +2005,27 @@ def main() -> int:
                 ),
                 "title_candidates": (
                     inferred["candidates"]
+                ),
+                "used_fallback": (
+                    bool(
+                        inferred.get(
+                            "used_fallback",
+                            False,
+                        )
+                    )
+                ),
+                "rejected_title": (
+                    inferred.get(
+                        "rejected_title"
+                    )
+                ),
+                "rejection_reasons": (
+                    list(
+                        inferred.get(
+                            "rejection_reasons",
+                            [],
+                        )
+                    )
                 ),
             })
 
@@ -2219,19 +2264,31 @@ def main() -> int:
         == "low"
     ]
 
+    title_fallback_items = [
+        item
+        for item in title_metadata
+        if item.get("used_fallback")
+        is True
+    ]
+
     generation_report = {
         "schema_version": "1.0",
-        "status": (
-            "READY"
+        "status": "READY",
+        "metadata_enrichment_status": (
+            "COMPLETE"
             if not title_review_items
-            else "NEEDS_TITLE_REVIEW"
+            else "OPTIONAL_REVIEW"
         ),
+        "processing_blocked_by_title_review": False,
         "generated_at": utc_now(),
         "write_enabled": bool(
             args.write
         ),
         "book_id": args.book_id,
         "version": version,
+        "processing_adapter": (
+            adapter_runtime_metadata(book)
+        ),
         "inspection_path": str(
             args.inspection
         ),
@@ -2298,11 +2355,31 @@ def main() -> int:
                 "source": (
                     item["title_source"]
                 ),
+                "used_fallback": (
+                    item.get(
+                        "used_fallback",
+                        False,
+                    )
+                ),
+                "rejected_title": (
+                    item.get(
+                        "rejected_title"
+                    )
+                ),
+                "rejection_reasons": (
+                    item.get(
+                        "rejection_reasons",
+                        [],
+                    )
+                ),
             }
             for item in title_review_items
         ],
         "low_confidence_title_count": (
             len(low_confidence)
+        ),
+        "safe_fallback_title_count": (
+            len(title_fallback_items)
         ),
         "validation": {
             "manifest": "PASSED",

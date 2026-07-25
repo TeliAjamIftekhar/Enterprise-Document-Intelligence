@@ -1,0 +1,307 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-hindi-malhar",
+  "book_version": "v1",
+  "title": "Malhar Hindi Textbook for Grade 6",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-VI/Hindi-Malhar.zip",
+    "archive_root": null,
+    "supplementary_assets": []
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 188,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 188,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "fhml1ps.pdf",
+      "source_page_count": 20,
+      "canonical_start_page": 1,
+      "canonical_end_page": 20,
+      "title": "Malhar Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "fhml101.pdf",
+      "source_page_count": 12,
+      "canonical_start_page": 21,
+      "canonical_end_page": 32,
+      "title": "मातृभूमि",
+      "chapters": [
+        {
+          "chapter_id": "unit-1",
+          "chapter_title": "मातृभूमि",
+          "source_start_page": 1,
+          "source_end_page": 12,
+          "canonical_start_page": 21,
+          "canonical_end_page": 32
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "fhml102.pdf",
+      "source_page_count": 12,
+      "canonical_start_page": 33,
+      "canonical_end_page": 44,
+      "title": "गोल",
+      "chapters": [
+        {
+          "chapter_id": "unit-2",
+          "chapter_title": "गोल",
+          "source_start_page": 1,
+          "source_end_page": 12,
+          "canonical_start_page": 33,
+          "canonical_end_page": 44
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "fhml103.pdf",
+      "source_page_count": 8,
+      "canonical_start_page": 45,
+      "canonical_end_page": 52,
+      "title": "पहली बूँद",
+      "chapters": [
+        {
+          "chapter_id": "unit-3",
+          "chapter_title": "पहली बूँद",
+          "source_start_page": 1,
+          "source_end_page": 8,
+          "canonical_start_page": 45,
+          "canonical_end_page": 52
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "fhml104.pdf",
+      "source_page_count": 12,
+      "canonical_start_page": 53,
+      "canonical_end_page": 64,
+      "title": "हार की जीत",
+      "chapters": [
+        {
+          "chapter_id": "unit-4",
+          "chapter_title": "हार की जीत",
+          "source_start_page": 1,
+          "source_end_page": 12,
+          "canonical_start_page": 53,
+          "canonical_end_page": 64
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "fhml105.pdf",
+      "source_page_count": 6,
+      "canonical_start_page": 65,
+      "canonical_end_page": 70,
+      "title": "रहीम के दोहे",
+      "chapters": [
+        {
+          "chapter_id": "unit-5",
+          "chapter_title": "रहीम के दोहे",
+          "source_start_page": 1,
+          "source_end_page": 6,
+          "canonical_start_page": 65,
+          "canonical_end_page": 70
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "document_id": "unit-6",
+      "document_type": "unit",
+      "unit_number": 6,
+      "source_filename": "fhml106.pdf",
+      "source_page_count": 9,
+      "canonical_start_page": 71,
+      "canonical_end_page": 79,
+      "title": "मेरी माँ",
+      "chapters": [
+        {
+          "chapter_id": "unit-6",
+          "chapter_title": "मेरी माँ",
+          "source_start_page": 1,
+          "source_end_page": 9,
+          "canonical_start_page": 71,
+          "canonical_end_page": 79
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "document_id": "unit-7",
+      "document_type": "unit",
+      "unit_number": 7,
+      "source_filename": "fhml107.pdf",
+      "source_page_count": 15,
+      "canonical_start_page": 80,
+      "canonical_end_page": 94,
+      "title": "जलाते चलो",
+      "chapters": [
+        {
+          "chapter_id": "unit-7",
+          "chapter_title": "जलाते चलो",
+          "source_start_page": 1,
+          "source_end_page": 15,
+          "canonical_start_page": 80,
+          "canonical_end_page": 94
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "document_id": "unit-8",
+      "document_type": "unit",
+      "unit_number": 8,
+      "source_filename": "fhml108.pdf",
+      "source_page_count": 19,
+      "canonical_start_page": 95,
+      "canonical_end_page": 113,
+      "title": "सत्रिया और बिहू नृत्य",
+      "chapters": [
+        {
+          "chapter_id": "unit-8",
+          "chapter_title": "सत्रिया और बिहू नृत्य",
+          "source_start_page": 1,
+          "source_end_page": 19,
+          "canonical_start_page": 95,
+          "canonical_end_page": 113
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "document_id": "unit-9",
+      "document_type": "unit",
+      "unit_number": 9,
+      "source_filename": "fhml109.pdf",
+      "source_page_count": 11,
+      "canonical_start_page": 114,
+      "canonical_end_page": 124,
+      "title": "मैया मैं नहिं माखन खायो",
+      "chapters": [
+        {
+          "chapter_id": "unit-9",
+          "chapter_title": "मैया मैं नहिं माखन खायो",
+          "source_start_page": 1,
+          "source_end_page": 11,
+          "canonical_start_page": 114,
+          "canonical_end_page": 124
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "document_id": "unit-10",
+      "document_type": "unit",
+      "unit_number": 10,
+      "source_filename": "fhml110.pdf",
+      "source_page_count": 17,
+      "canonical_start_page": 125,
+      "canonical_end_page": 141,
+      "title": "परीक्षा",
+      "chapters": [
+        {
+          "chapter_id": "unit-10",
+          "chapter_title": "परीक्षा",
+          "source_start_page": 1,
+          "source_end_page": 17,
+          "canonical_start_page": 125,
+          "canonical_end_page": 141
+        }
+      ]
+    },
+    {
+      "order": 12,
+      "document_id": "unit-11",
+      "document_type": "unit",
+      "unit_number": 11,
+      "source_filename": "fhml111.pdf",
+      "source_page_count": 6,
+      "canonical_start_page": 142,
+      "canonical_end_page": 147,
+      "title": "चेतक की वीरता",
+      "chapters": [
+        {
+          "chapter_id": "unit-11",
+          "chapter_title": "चेतक की वीरता",
+          "source_start_page": 1,
+          "source_end_page": 6,
+          "canonical_start_page": 142,
+          "canonical_end_page": 147
+        }
+      ]
+    },
+    {
+      "order": 13,
+      "document_id": "unit-12",
+      "document_type": "unit",
+      "unit_number": 12,
+      "source_filename": "fhml112.pdf",
+      "source_page_count": 17,
+      "canonical_start_page": 148,
+      "canonical_end_page": 164,
+      "title": "हिंद महासागर में छोटा-सा हिंदुस्तान",
+      "chapters": [
+        {
+          "chapter_id": "unit-12",
+          "chapter_title": "हिंद महासागर में छोटा-सा हिंदुस्तान",
+          "source_start_page": 1,
+          "source_end_page": 17,
+          "canonical_start_page": 148,
+          "canonical_end_page": 164
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "document_id": "unit-13",
+      "document_type": "unit",
+      "unit_number": 13,
+      "source_filename": "fhml113.pdf",
+      "source_page_count": 24,
+      "canonical_start_page": 165,
+      "canonical_end_page": 188,
+      "title": "पेड़ की बात",
+      "chapters": [
+        {
+          "chapter_id": "unit-13",
+          "chapter_title": "पेड़ की बात",
+          "source_start_page": 1,
+          "source_end_page": 24,
+          "canonical_start_page": 165,
+          "canonical_end_page": 188
+        }
+      ]
+    }
+  ]
+}

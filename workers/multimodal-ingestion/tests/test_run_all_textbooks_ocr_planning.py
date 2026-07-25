@@ -248,6 +248,99 @@ def test_mathematics_uses_mixed_quality_gate(
     assert page_count == 220
 
 
+@pytest.mark.parametrize(
+    (
+        "book_metadata",
+        "config_book",
+        "expected_language",
+    ),
+    [
+        (
+            {
+                "script": "latin",
+                "processing_profile": (
+                    "academic-multimodal"
+                ),
+            },
+            {
+                "language": "English",
+                "subject": "Science",
+                "page_count": 100,
+            },
+            "English",
+        ),
+        (
+            {
+                "script": "devanagari",
+                "processing_profile": (
+                    "multilingual-language"
+                ),
+            },
+            {
+                "language": "Hindi",
+                "subject": "Hindi",
+                "page_count": 120,
+            },
+            "Hindi",
+        ),
+        (
+            {
+                "script": "devanagari",
+                "processing_profile": (
+                    "multilingual-language"
+                ),
+            },
+            {
+                "language": "Sanskrit",
+                "subject": "Sanskrit",
+                "page_count": 140,
+            },
+            "Sanskrit",
+        ),
+        (
+            {
+                "script": "arabic",
+                "processing_profile": (
+                    "multilingual-language"
+                ),
+            },
+            {
+                "language": "Urdu",
+                "subject": "Urdu",
+                "page_count": 160,
+            },
+            "Urdu",
+        ),
+    ],
+)
+def test_processing_metadata_uses_adapter_registry(
+    tmp_path: Path,
+    book_metadata: dict,
+    config_book: dict,
+    expected_language: str,
+) -> None:
+    runner = load_runner()
+
+    config = tmp_path / "book.json"
+
+    write_json(
+        config,
+        {
+            "book": config_book,
+        },
+    )
+
+    language, page_count = (
+        runner.load_book_processing_metadata(
+            book_metadata,
+            config,
+        )
+    )
+
+    assert language == expected_language
+    assert page_count == config_book["page_count"]
+
+
 def test_process_book_accepts_valid_bda_text(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2596,3 +2689,231 @@ def test_visual_inspection_disables_native_recovery(
     assert not runner.inspection_uses_text_layout(
         inspection
     )
+
+
+def test_parse_args_accepts_through_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+
+    runner = load_runner()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_all_textbooks.py",
+            "--bucket",
+            "test-bucket",
+            "--prefix",
+            "NCERT I-X/",
+            "--through-stage",
+            "CONFIG_GENERATED",
+        ],
+    )
+
+    args = runner.parse_args()
+
+    assert (
+        args.through_stage
+        == "CONFIG_GENERATED"
+    )
+
+
+def test_through_stage_dry_run_stops_after_config_plan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = load_runner()
+    paths = build_paths(tmp_path)
+    paths["chapter_structure"] = (
+        tmp_path / "chapter-structure.json"
+    )
+    commands: list[str] = []
+
+    monkeypatch.setattr(
+        runner,
+        "paths_for_book",
+        lambda book_id, version: paths,
+    )
+
+    def fake_run_command(
+        command: list[str],
+        **kwargs: object,
+    ) -> None:
+        commands.append(
+            Path(command[1]).name
+        )
+
+    monkeypatch.setattr(
+        runner,
+        "run_command",
+        fake_run_command,
+    )
+
+    state_path = tmp_path / "state.json"
+    state = create_state(
+        runner,
+        state_path,
+    )
+
+    result = runner.process_book(
+        {
+            "book_id": "grade-6-hindi-test",
+            "grade": 6,
+            "title": "Hindi Test Textbook",
+            "language": "Hindi",
+            "subject": "Hindi",
+            "source_bucket": "test-bucket",
+            "source_zip_key": (
+                "NCERT I-X/Standard-VI/"
+                "Hindi-Test.zip"
+            ),
+        },
+        registry_path=tmp_path / "registry.json",
+        state_path=state_path,
+        state=state,
+        maximum_retries=0,
+        dry_run=True,
+        through_stage="CONFIG_GENERATED",
+    )
+
+    assert result == "CONFIG_GENERATED"
+
+    assert commands == [
+        "inspect_textbook_source_archive.py",
+        (
+            "generate_book_config_"
+            "from_inspection.py"
+        ),
+    ]
+
+
+def test_through_stage_real_run_stops_after_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = load_runner()
+    paths = build_paths(tmp_path)
+    paths["chapter_structure"] = (
+        tmp_path / "chapter-structure.json"
+    )
+    commands: list[str] = []
+
+    monkeypatch.setattr(
+        runner,
+        "paths_for_book",
+        lambda book_id, version: paths,
+    )
+
+    def fake_run_command(
+        command: list[str],
+        **kwargs: object,
+    ) -> None:
+        command_name = Path(
+            command[1]
+        ).name
+
+        commands.append(command_name)
+
+        if (
+            command_name
+            == "inspect_textbook_source_archive.py"
+        ):
+            paths["archive"].parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            paths["archive"].write_bytes(
+                b"test-zip"
+            )
+
+            write_json(
+                paths["inspection"],
+                {
+                    "inspection_status": "PASSED",
+                },
+            )
+
+        elif command_name == (
+            "generate_book_config_"
+            "from_inspection.py"
+        ):
+            write_json(
+                paths["config"],
+                {
+                    "book": {
+                        "language": "Hindi",
+                        "subject": "Hindi",
+                        "page_count": 1,
+                    }
+                },
+            )
+
+            write_json(
+                paths["manifest"],
+                {
+                    "chapters": [],
+                },
+            )
+
+            write_json(
+                paths["generation_report"],
+                {
+                    "status": "READY",
+                },
+            )
+
+    monkeypatch.setattr(
+        runner,
+        "run_command",
+        fake_run_command,
+    )
+
+    state_path = tmp_path / "state.json"
+    state = create_state(
+        runner,
+        state_path,
+    )
+
+    result = runner.process_book(
+        {
+            "book_id": "grade-6-hindi-test",
+            "grade": 6,
+            "title": "Hindi Test Textbook",
+            "language": "Hindi",
+            "subject": "Hindi",
+            "source_bucket": "test-bucket",
+            "source_zip_key": (
+                "NCERT I-X/Standard-VI/"
+                "Hindi-Test.zip"
+            ),
+        },
+        registry_path=tmp_path / "registry.json",
+        state_path=state_path,
+        state=state,
+        maximum_retries=0,
+        dry_run=False,
+        through_stage="CONFIG_GENERATED",
+    )
+
+    assert result == "CONFIG_GENERATED"
+
+    assert commands == [
+        "inspect_textbook_source_archive.py",
+        (
+            "generate_book_config_"
+            "from_inspection.py"
+        ),
+    ]
+
+    assert (
+        state["books"][
+            "grade-6-hindi-test"
+        ]["status"]
+        == "CONFIG_GENERATED"
+    )
+
+    assert not paths["extracted"].exists()
+    assert not paths["canonical_pdf"].exists()

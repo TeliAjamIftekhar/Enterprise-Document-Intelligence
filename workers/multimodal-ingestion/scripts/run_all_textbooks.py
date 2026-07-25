@@ -13,6 +13,23 @@ from pathlib import Path
 from typing import Any
 
 
+WORKER_ROOT = Path(
+    __file__
+).resolve().parents[1]
+
+SRC_ROOT = WORKER_ROOT / "src"
+
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(
+        0,
+        str(SRC_ROOT),
+    )
+
+from processing_adapters import (
+    resolve_processing_adapter,
+)
+
+
 REGISTRY_DEFAULT = Path(
     "data/textbook-automation/"
     "ncert-i-x-book-registry.json"
@@ -1869,14 +1886,18 @@ def load_book_processing_metadata(
         )
     ).strip()
 
-    if raw_subject.casefold() in {
-        "mathematics",
-        "math",
-        "maths",
-    }:
-        expected_language = "Mathematics"
-    else:
-        expected_language = raw_language
+    adapter = resolve_processing_adapter(
+        subject=raw_subject,
+        language=raw_language,
+        script=book.get("script"),
+        processing_profile=book.get(
+            "processing_profile"
+        ),
+    )
+
+    expected_language = (
+        adapter.expected_language
+    )
 
     if not expected_language:
         raise ValueError(
@@ -2262,6 +2283,7 @@ def process_book(
     state: dict[str, Any],
     maximum_retries: int,
     dry_run: bool,
+    through_stage: str | None = None,
 ) -> str:
     book_id = str(book["book_id"])
     version = "v1"
@@ -2449,6 +2471,49 @@ def process_book(
                 status="CONFIG_GENERATED",
                 paths=paths,
             )
+
+    if through_stage == "CONFIG_GENERATED":
+        if dry_run:
+            target_result = (
+                current_stage
+                if (
+                    current_stage in STAGES
+                    and STAGES.index(current_stage)
+                    >= STAGES.index(
+                        "CONFIG_GENERATED"
+                    )
+                )
+                else "CONFIG_GENERATED"
+            )
+
+            print(
+                "Dry-run stopped after planned "
+                f"stage: {target_result}"
+            )
+
+            return target_result
+
+        reached_stage = discover_current_stage(
+            book_id,
+            paths,
+        )
+
+        if (
+            reached_stage not in STAGES
+            or STAGES.index(reached_stage)
+            < STAGES.index("CONFIG_GENERATED")
+        ):
+            raise RuntimeError(
+                "Requested stage was not reached: "
+                "CONFIG_GENERATED"
+            )
+
+        print(
+            "Stopped after requested stage:",
+            reached_stage,
+        )
+
+        return reached_stage
 
     extraction_ready = (
         paths["extracted"].is_dir()
@@ -3530,6 +3595,19 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--through-stage",
+        choices=(
+            "CONFIG_GENERATED",
+        ),
+        default=None,
+        help=(
+            "Stop safely after the requested "
+            "pipeline stage. When omitted, the "
+            "full pipeline remains enabled."
+        ),
+    )
+
+    parser.add_argument(
         "--max-retries",
         type=int,
         default=2,
@@ -3582,8 +3660,9 @@ def main() -> int:
     print("Resume:       ", args.resume)
     print("Dry run:      ", args.dry_run)
     print(
-        "Through stage: OCR planning "
-        "(when normalized BDA output exists)"
+        "Through stage:",
+        args.through_stage
+        or "FULL_PIPELINE",
     )
     print("State:        ", args.state)
 
@@ -3607,6 +3686,9 @@ def main() -> int:
                     args.max_retries
                 ),
                 dry_run=args.dry_run,
+                through_stage=(
+                    args.through_stage
+                ),
             )
 
             if (

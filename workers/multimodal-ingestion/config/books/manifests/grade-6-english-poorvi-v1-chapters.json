@@ -1,0 +1,139 @@
+{
+  "schema_version": "1.0",
+  "book_id": "grade-6-english-poorvi",
+  "book_version": "v1",
+  "title": "Poorvi English Textbook for Grade 6",
+  "ordering_strategy": "manifest",
+  "source_archive": {
+    "bucket": "edi-documents-ajam-2026",
+    "key": "NCERT I-X/Standard-VI/English-Poorvi.zip",
+    "archive_root": null,
+    "supplementary_assets": []
+  },
+  "canonical_layout": {
+    "leading_blank_pages": 0,
+    "source_document_pages": 180,
+    "trailing_blank_pages": 0,
+    "canonical_page_count": 180,
+    "source_to_canonical_page_offset": 0
+  },
+  "documents": [
+    {
+      "order": 1,
+      "document_id": "front-matter",
+      "document_type": "front_matter",
+      "unit_number": null,
+      "source_filename": "fepr1ps.pdf",
+      "source_page_count": 16,
+      "canonical_start_page": 1,
+      "canonical_end_page": 16,
+      "title": "Poorvi Front Matter",
+      "chapters": []
+    },
+    {
+      "order": 2,
+      "document_id": "unit-1",
+      "document_type": "unit",
+      "unit_number": 1,
+      "source_filename": "fepr101.pdf",
+      "source_page_count": 38,
+      "canonical_start_page": 17,
+      "canonical_end_page": 54,
+      "title": "Unit 1",
+      "chapters": [
+        {
+          "chapter_id": "unit-1",
+          "chapter_title": "Unit 1",
+          "source_start_page": 1,
+          "source_end_page": 38,
+          "canonical_start_page": 17,
+          "canonical_end_page": 54
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "document_id": "unit-2",
+      "document_type": "unit",
+      "unit_number": 2,
+      "source_filename": "fepr102.pdf",
+      "source_page_count": 36,
+      "canonical_start_page": 55,
+      "canonical_end_page": 90,
+      "title": "Unit 2",
+      "chapters": [
+        {
+          "chapter_id": "unit-2",
+          "chapter_title": "Unit 2",
+          "source_start_page": 1,
+          "source_end_page": 36,
+          "canonical_start_page": 55,
+          "canonical_end_page": 90
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "document_id": "unit-3",
+      "document_type": "unit",
+      "unit_number": 3,
+      "source_filename": "fepr103.pdf",
+      "source_page_count": 28,
+      "canonical_start_page": 91,
+      "canonical_end_page": 118,
+      "title": "Unit 3",
+      "chapters": [
+        {
+          "chapter_id": "unit-3",
+          "chapter_title": "Unit 3",
+          "source_start_page": 1,
+          "source_end_page": 28,
+          "canonical_start_page": 91,
+          "canonical_end_page": 118
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "document_id": "unit-4",
+      "document_type": "unit",
+      "unit_number": 4,
+      "source_filename": "fepr104.pdf",
+      "source_page_count": 28,
+      "canonical_start_page": 119,
+      "canonical_end_page": 146,
+      "title": "Unit 4",
+      "chapters": [
+        {
+          "chapter_id": "unit-4",
+          "chapter_title": "Unit 4",
+          "source_start_page": 1,
+          "source_end_page": 28,
+          "canonical_start_page": 119,
+          "canonical_end_page": 146
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "document_id": "unit-5",
+      "document_type": "unit",
+      "unit_number": 5,
+      "source_filename": "fepr105.pdf",
+      "source_page_count": 34,
+      "canonical_start_page": 147,
+      "canonical_end_page": 180,
+      "title": "Unit 5",
+      "chapters": [
+        {
+          "chapter_id": "unit-5",
+          "chapter_title": "Unit 5",
+          "source_start_page": 1,
+          "source_end_page": 34,
+          "canonical_start_page": 147,
+          "canonical_end_page": 180
+        }
+      ]
+    }
+  ]
+}
